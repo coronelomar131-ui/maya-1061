@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Maya Autopartes ML - Online</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --primary: #1a3a52;
+            --accent: #ff8c00;
+            --success: #198754;
+            --warning: #d97706;
+            --danger: #dc3545;
+            --bg-dark: #0f1419;
+            --bg-secondary: #1a2332;
+            --text-light: #e0e0e0;
+            --text-muted: #9ca3af;
+            --border: #2d3d4f;
+        }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto; background-color: var(--bg-dark); color: var(--text-light); overflow: hidden; }
+        .app-container { display: flex; height: 100vh; }
+        .login-screen { display: none; position: fixed; inset: 0; background: linear-gradient(135deg, var(--primary) 0%, var(--bg-dark) 100%); z-index: 1000; justify-content: center; align-items: center; flex-direction: column; }
+        .login-screen.active { display: flex; }
+        .login-box { background: var(--bg-secondary); padding: 3rem; border-radius: 12px; box-shadow: 0 10px 40px rgba(0,0,0,0.5); width: 100%; max-width: 400px; border: 1px solid var(--border); }
+        .login-box h1 { color: var(--accent); margin-bottom: 0.5rem; font-size: 1.8rem; }
+        .subtitle { color: var(--text-muted); margin-bottom: 2rem; font-size: 0.9rem; }
+        .form-group { margin-bottom: 1.5rem; }
+        .form-group label { display: block; margin-bottom: 0.5rem; color: var(--text-light); font-weight: 500; }
+        .form-group input { width: 100%; padding: 0.75rem; background: var(--bg-dark); border: 1px solid var(--border); color: var(--text-light); border-radius: 6px; font-size: 1rem; }
+        .form-group input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(255,140,0,0.1); }
+        .btn { padding: 0.75rem 1.5rem; border: none; border-radius: 6px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: all 0.3s; width: 100%; }
+        .btn-primary { background: var(--accent); color: white; }
+        .btn-primary:hover { background: #e67e00; transform: translateY(-2px); }
+        .alert { padding: 1rem; border-radius: 6px; margin-bottom: 1rem; }
+        .alert-danger { background: rgba(220,53,69,0.1); color: #ff8a8a; border: 1px solid var(--danger); }
+        .alert-info { background: rgba(26,58,82,0.2); color: var(--text-light); border: 1px solid var(--primary); }
+        .sidebar { width: 250px; background: var(--bg-secondary); border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow-y: auto; }
+        .sidebar-header { padding: 1.5rem; border-bottom: 1px solid var(--border); }
+        .sidebar-header h2 { color: var(--accent); font-size: 1.3rem; margin: 0; }
+        .sidebar-menu { flex: 1; padding: 1rem 0; }
+        .menu-item { display: flex; align-items: center; padding: 1rem 1.5rem; cursor: pointer; transition: all 0.3s; color: var(--text-muted); border-left: 3px solid transparent; font-weight: 500; }
+        .menu-item:hover { background: rgba(255,140,0,0.05); color: var(--text-light); border-left-color: var(--accent); }
+        .menu-item.active { background: rgba(255,140,0,0.1); color: var(--accent); border-left-color: var(--accent); }
+        .menu-item .icon { width: 20px; margin-right: 1rem; }
+        .sidebar-footer { padding: 1rem 1.5rem; border-top: 1px solid var(--border); }
+        .btn-logout { background: rgba(220,53,69,0.2); color: #ff8a8a; border: 1px solid var(--danger); width: 100%; }
+        .main-content { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+        .header { background: var(--bg-secondary); border-bottom: 1px solid var(--border); padding: 1.5rem; display: flex; justify-content: space-between; align-items: center; }
+        .header h1 { font-size: 1.8rem; color: var(--text-light); }
+        .user-info { text-align: right; }
+        .user-info .name { color: var(--text-light); font-weight: 600; }
+        .user-info .role { color: var(--text-muted); font-size: 0.85rem; }
+        .content { flex: 1; overflow-y: auto; padding: 2rem; }
+        .module { display: none; }
+        .module.active { display: block; }
+        .card { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 8px; padding: 1.5rem; margin-bottom: 1.5rem; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; margin-bottom: 2rem; }
+        .kpi-card { background: linear-gradient(135deg, var(--bg-secondary) 0%, rgba(255,140,0,0.05) 100%); border: 1px solid var(--border); border-radius: 8px; padding: 1.5rem; text-align: center; }
+        .kpi-card .label { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 0.5rem; }
+        .kpi-card .value { color: var(--accent); font-size: 2rem; font-weight: 700; }
+        table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+        thead { background: var(--bg-dark); }
+        th { padding: 1rem; text-align: left; color: var(--text-light); font-weight: 600; border-bottom: 2px solid var(--border); }
+        td { padding: 1rem; border-bottom: 1px solid var(--border); color: var(--text-light); }
+        tbody tr:hover { background: rgba(255,140,0,0.05); }
+        .badge { display: inline-block; padding: 0.4rem 0.8rem; border-radius: 4px; font-size: 0.85rem; font-weight: 600; }
+        .badge-success { background: rgba(25,135,84,0.2); color: #a8e6c1; border: 1px solid var(--success); }
+        .badge-danger { background: rgba(220,53,69,0.2); color: #ff8a8a; border: 1px solid var(--danger); }
+        .badge-primary { background: rgba(26,58,82,0.2); color: #7dd3fc; border: 1px solid var(--primary); }
+        .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 500; justify-content: center; align-items: center; }
+        .modal.active { display: flex; }
+        .modal-content { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 8px; padding: 2rem; width: 90%; max-width: 500px; max-height: 90vh; overflow-y: auto; }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
+        .modal-header h2 { color: var(--accent); font-size: 1.5rem; }
+        .close-modal { background: none; border: none; color: var(--text-light); font-size: 1.5rem; cursor: pointer; }
+        .loading { text-align: center; color: var(--text-muted); padding: 2rem; }
+        .spinner { display: inline-block; width: 20px; height: 20px; border: 3px solid rgba(255,140,0,0.3); border-top: 3px solid var(--accent); border-radius: 50%; animation: spin 1s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @media (max-width: 768px) {
+            .app-container { flex-direction: column; }
+            .sidebar { width: 100%; max-height: 60px; }
+            .sidebar-menu { display: none; }
+            .grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- LOGIN -->
+        <div class="login-screen active" id="loginScreen">
+            <div class="login-box">
+                <h1>🔧 Maya Autopartes</h1>
+                <p class="subtitle">Sistema Online</p>
+                <div id="loginAlert"></div>
+                <div id="loginContent">
+                    <div class="form-group">
+                        <label>Usuario</label>
+                        <input type="text" id="loginUser" placeholder="username" onkeypress="if(event.key==='Enter')login()">
+                    </div>
+                    <div class="form-group">
+                        <label>PIN</label>
+                        <input type="password" id="loginPin" placeholder="1234" maxlength="4" onkeypress="if(event.key==='Enter')login()">
+                    </div>
+                    <button class="btn btn-primary" onclick="login()">Ingresar</button>
+                </div>
+                <div id="setupContent" style="display:none;">
+                    <div class="alert alert-info">
+                        <strong>🆕 Primer usuario admin</strong>
+                    </div>
+                    <div class="form-group">
+                        <label>Nombre</label>
+                        <input type="text" id="setupName" placeholder="Tu nombre">
+                    </div>
+                    <div class="form-group">
+                        <label>Usuario</label>
+                        <input type="text" id="setupUser" placeholder="username">
+                    </div>
+                    <div class="form-group">
+                        <label>PIN (4 dígitos)</label>
+                        <input type="password" id="setupPin" placeholder="1234" maxlength="4">
+                    </div>
+                    <button class="btn btn-primary" onclick="createAdmin()">Crear Admin</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- SIDEBAR -->
+        <div class="sidebar" id="sidebar" style="display:none;">
+            <div class="sidebar-header">
+                <h2>🔧 Maya</h2>
+            </div>
+            <div class="sidebar-menu">
+                <div class="menu-item active" onclick="switchModule('dashboard')"><span class="icon">📊</span>Dashboard</div>
+                <div class="menu-item" onclick="switchModule('ventas')"><span class="icon">💰</span>Ventas</div>
+                <div class="menu-item" onclick="switchModule('almacen')"><span class="icon">📦</span>Almacén</div>
+                <div class="menu-item" onclick="switchModule('clientes')"><span class="icon">👥</span>Clientes</div>
+                <div class="menu-item" onclick="switchModule('facturas')"><span class="icon">📄</span>Mis Facturas</div>
+                <div class="menu-item" onclick="switchModule('usuarios')"><span class="icon">🔑</span>Usuarios</div>
+            </div>
+            <div class="sidebar-footer">
+                <button class="btn btn-logout" onclick="logout()">Salir</button>
+            </div>
+        </div>
+
+        <!-- MAIN CONTENT -->
+        <div class="main-content" id="mainContent" style="display:none;">
+            <div class="header">
+                <h1 id="pageTitle">Dashboard</h1>
+                <div class="user-info">
+                    <div class="name" id="headerUser">Usuario</div>
+                    <div class="role" id="headerRole">user</div>
+                </div>
+            </div>
+
+            <div class="content">
+                <!-- DASHBOARD -->
+                <div id="dashboard" class="module active">
+                    <div class="grid">
+                        <div class="kpi-card">
+                            <div class="label">Total Ventas Hoy</div>
+                            <div class="value" id="kpiVentasHoy">$0</div>
+                        </div>
+                        <div class="kpi-card">
+                            <div class="label">Utilidad Hoy</div>
+                            <div class="value" id="kpiUtilidadHoy">$0</div>
+                        </div>
+                        <div class="kpi-card">
+                            <div class="label">Productos Bajos</div>
+                            <div class="value" id="kpiProductosBajos">0</div>
+                        </div>
+                        <div class="kpi-card">
+                            <div class="label">Clientes</div>
+                            <div class="value" id="kpiClientes">0</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- VENTAS -->
+                <div id="ventas" class="module">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
+                        <h2>Ventas</h2>
+                        <button class="btn btn-primary" style="width:auto;" onclick="openVentaModal()">+ Nueva</button>
+                    </div>
+                    <div class="card">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Fecha</th>
+                                    <th>Cliente</th>
+                                    <th>Total</th>
+                                    <th>Ganancia</th>
+                                </tr>
+                            </thead>
+                            <tbody id="ventasTable">
+                                <tr><td colspan="4" style="text-align:center;">Cargando...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- ALMACÉN -->
+                <div id="almacen" class="module">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
+                        <h2>Almacén</h2>
+                        <button class="btn btn-primary" style="width:auto;" onclick="openProductoModal()">+ Producto</button>
+                    </div>
+                    <div class="grid" id="productosGrid">
+                        <div style="grid-column:1/-1; text-align:center; color:var(--text-muted);">Cargando...</div>
+                    </div>
+                </div>
+
+                <!-- CLIENTES -->
+                <div id="clientes" class="module">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
+                        <h2>Clientes</h2>
+                        <button class="btn btn-primary" style="width:auto;" onclick="openClienteModal()">+ Nuevo</button>
+                    </div>
+                    <div class="grid" id="clientesGrid">
+                        <div style="grid-column:1/-1; text-align:center; color:var(--text-muted);">Cargando...</div>
+                    </div>
+                </div>
+
+                <!-- FACTURAS -->
+                <div id="facturas" class="module">
+                    <h2>Mis Facturas</h2>
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:2rem;">
+                        <div><h3 style="color:var(--accent); margin-bottom:1rem;">📄 Estefanya</h3><div id="facturasEste" style="color:var(--text-muted);">Sin facturas</div></div>
+                        <div><h3 style="color:var(--accent); margin-bottom:1rem;">📄 Josué</h3><div id="facturasJose" style="color:var(--text-muted);">Sin facturas</div></div>
+                    </div>
+                </div>
+
+                <!-- USUARIOS -->
+                <div id="usuarios" class="module">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
+                        <h2>Usuarios</h2>
+                        <button class="btn btn-primary" style="width:auto;" onclick="openUsuarioModal()">+ Usuario</button>
+                    </div>
+                    <div class="card">
+                        <table>
+                            <thead>
+                                <tr><th>Nombre</th><th>Usuario</th><th>Rol</th></tr>
+                            </thead>
+                            <tbody id="usuariosTable">
+                                <tr><td colspan="3" style="text-align:center;">Cargando...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODALS -->
+    <div class="modal" id="ventaModal">
+        <div class="modal-content">
+            <div class="modal-header"><h2>Nueva Venta</h2><button class="close-modal" onclick="closeModal('ventaModal')">×</button></div>
+            <div class="form-group"><label>Fecha</label><input type="date" id="ventaFecha"></div>
+            <div class="form-group"><label>Cliente</label><select id="ventaCliente" style="width:100%; padding:0.75rem; background:var(--bg-dark); border:1px solid var(--border); border-radius:6px; color:var(--text-light);"><option value="">Seleccionar</option></select></div>
+            <div class="form-group"><label>Total ($)</label><input type="number" id="ventaTotal" placeholder="0.00" step="0.01"></div>
+            <div class="form-group"><label>Costo ($)</label><input type="number" id="ventaCosto" placeholder="0.00" step="0.01"></div>
+            <button class="btn btn-primary" onclick="saveVenta()">Guardar</button>
+        </div>
+    </div>
+
+    <div class="modal" id="productoModal">
+        <div class="modal-content">
+            <div class="modal-header"><h2>Nuevo Producto</h2><button class="close-modal" onclick="closeModal('productoModal')">×</button></div>
+            <div class="form-group"><label>Nombre</label><input type="text" id="productoNombre"></div>
+            <div class="form-group"><label>SKU</label><input type="text" id="productoSKU"></div>
+            <div class="form-group"><label>Categoría</label><select id="productoCategoria" style="width:100%; padding:0.75rem; background:var(--bg-dark); border:1px solid var(--border); border-radius:6px; color:var(--text-light);"><option>Repuestos</option><option>Accesorios</option><option>Fluidos</option></select></div>
+            <div class="form-group"><label>Costo ($)</label><input type="number" id="productoCosto" step="0.01"></div>
+            <div class="form-group"><label>Precio ($)</label><input type="number" id="productoPrecio" step="0.01"></div>
+            <div class="form-group"><label>Stock</label><input type="number" id="productoStock" step="1"></div>
+            <div class="form-group"><label>Stock Mínimo</label><input type="number" id="productoStockMin" value="5" step="1"></div>
+            <button class="btn btn-primary" onclick="saveProducto()">Guardar</button>
+        </div>
+    </div>
+
+    <div class="modal" id="clienteModal">
+        <div class="modal-content">
+            <div class="modal-header"><h2>Nuevo Cliente</h2><button class="close-modal" onclick="closeModal('clienteModal')">×</button></div>
+            <div class="form-group"><label>Nombre</label><input type="text" id="clienteNombre"></div>
+            <div class="form-group"><label>Teléfono</label><input type="tel" id="clienteTelefono"></div>
+            <div class="form-group"><label>Correo</label><input type="email" id="clienteCorreo"></div>
+            <button class="btn btn-primary" onclick="saveCliente()">Guardar</button>
+        </div>
+    </div>
+
+    <div class="modal" id="usuarioModal">
+        <div class="modal-content">
+            <div class="modal-header"><h2>Nuevo Usuario</h2><button class="close-modal" onclick="closeModal('usuarioModal')">×</button></div>
+            <div class="form-group"><label>Nombre</label><input type="text" id="usuarioNombre"></div>
+            <div class="form-group"><label>Usuario</label><input type="text" id="usuarioUser"></div>
+            <div class="form-group"><label>PIN (4 dígitos)</label><input type="password" id="usuarioPin" maxlength="4"></div>
+            <div class="form-group"><label>Rol</label><select id="usuarioRol" style="width:100%; padding:0.75rem; background:var(--bg-dark); border:1px solid var(--border); border-radius:6px; color:var(--text-light);"><option value="user">Usuario</option><option value="admin">Admin</option></select></div>
+            <button class="btn btn-primary" onclick="saveUsuario()">Guardar</button>
+        </div>
+    </div>
+
+    <script>
+        let supabase = null;
+        let currentUser = null;
+
+        async function initSupabase() {
+            const url = localStorage.getItem('SUPABASE_URL');
+            const key = localStorage.getItem('SUPABASE_KEY');
+
+            if (!url || !key) {
+                window.location.href = 'setup.html';
+                return;
+            }
+
+            supabase = window.supabase.createClient(url, key);
+            await loadUsers();
+        }
+
+        async function loadUsers() {
+            const { data: users } = await supabase.from('users').select('*');
+            if (!users || users.length === 0) {
+                showSetupMode();
+            } else {
+                showLoginMode();
+            }
+        }
+
+        function showSetupMode() {
+            document.getElementById('setupContent').style.display = 'block';
+            document.getElementById('loginContent').style.display = 'none';
+        }
+
+        function showLoginMode() {
+            document.getElementById('setupContent').style.display = 'none';
+            document.getElementById('loginContent').style.display = 'block';
+        }
+
+        async function createAdmin() {
+            const name = document.getElementById('setupName').value.trim();
+            const username = document.getElementById('setupUser').value.trim();
+            const pin = document.getElementById('setupPin').value.trim();
+
+            if (!name || !username || pin.length !== 4) {
+                showLoginAlert('⚠️ Datos inválidos', 'danger');
+                return;
+            }
+
+            const { error } = await supabase.from('users').insert([{
+                id: 'user_' + Date.now(),
+                name,
+                username,
+                pin,
+                role: 'admin',
+                created_at: new Date().toISOString()
+            }]);
+
+            if (error) {
+                showLoginAlert('❌ ' + error.message, 'danger');
+                return;
+            }
+
+            currentUser = { name, username, role: 'admin' };
+            showMainApp();
+        }
+
+        async function login() {
+            const username = document.getElementById('loginUser').value.trim();
+            const pin = document.getElementById('loginPin').value.trim();
+
+            if (!username || !pin) {
+                showLoginAlert('⚠️ Ingresa usuario y PIN', 'danger');
+                return;
+            }
+
+            const { data: users } = await supabase
+                .from('users')
+                .select('*')
+                .eq('username', username)
+                .eq('pin', pin);
+
+            if (!users || users.length === 0) {
+                showLoginAlert('❌ Usuario o PIN incorrecto', 'danger');
+                return;
+            }
+
+            currentUser = users[0];
+            showMainApp();
+        }
+
+        function showLoginAlert(msg, type) {
+            const alert = document.getElementById('loginAlert');
+            alert.innerHTML = `<div class="alert alert-${type}">${msg}</div>`;
+            setTimeout(() => alert.innerHTML = '', 5000);
+        }
+
+        function showMainApp() {
+            document.getElementById('loginScreen').classList.remove('active');
+            document.getElementById('sidebar').style.display = 'flex';
+            document.getElementById('mainContent').style.display = 'flex';
+
+            document.getElementById('headerUser').textContent = currentUser.name;
+            document.getElementById('headerRole').textContent = currentUser.role === 'admin' ? 'Administrador' : 'Usuario';
+
+            loadDashboard();
+            loadAllData();
+        }
+
+        async function loadDashboard() {
+            const today = new Date().toISOString().split('T')[0];
+            const { data: ventas } = await supabase
+                .from('ventas')
+                .select('*')
+                .eq('user_id', currentUser.id)
+                .eq('fecha', today);
+
+            const totalHoy = (ventas || []).reduce((sum, v) => sum + v.total, 0);
+            const utilHoy = (ventas || []).reduce((sum, v) => sum + v.utilidad, 0);
+
+            const { data: productos } = await supabase.from('productos').select('*');
+            const { data: clientes } = await supabase.from('clientes').select('*');
+
+            document.getElementById('kpiVentasHoy').textContent = '$' + totalHoy.toFixed(2);
+            document.getElementById('kpiUtilidadHoy').textContent = '$' + utilHoy.toFixed(2);
+            document.getElementById('kpiProductosBajos').textContent = (productos || []).filter(p => p.stock < p.stock_min).length;
+            document.getElementById('kpiClientes').textContent = (clientes || []).length;
+        }
+
+        async function loadAllData() {
+            loadVentasTable();
+            loadProductosGrid();
+            loadClientesGrid();
+            loadUsuariosTable();
+        }
+
+        async function loadVentasTable() {
+            const { data: ventas } = await supabase
+                .from('ventas')
+                .select('*')
+                .eq('user_id', currentUser.id)
+                .order('fecha', { ascending: false });
+
+            const tbody = document.getElementById('ventasTable');
+            if (!ventas || ventas.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">Sin ventas</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = ventas.map(v => `
+                <tr>
+                    <td>${v.fecha}</td>
+                    <td>${v.cliente_nombre}</td>
+                    <td>$${v.total.toFixed(2)}</td>
+                    <td>$${v.utilidad.toFixed(2)}</td>
+                </tr>
+            `).join('');
+        }
+
+        async function loadProductosGrid() {
+            const { data: productos } = await supabase.from('productos').select('*');
+            const grid = document.getElementById('productosGrid');
+
+            if (!productos || productos.length === 0) {
+                grid.innerHTML = '<div style="grid-column:1/-1; text-align:center; color:var(--text-muted);">Sin productos</div>';
+                return;
+            }
+
+            grid.innerHTML = productos.map(p => `
+                <div class="card">
+                    <h3 style="color:var(--accent); margin-bottom:0.5rem;">${p.nombre}</h3>
+                    <div style="color:var(--text-muted); font-size:0.85rem; margin-bottom:1rem;">SKU: ${p.sku}</div>
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-bottom:1rem;">
+                        <div><div style="color:var(--text-muted);">Precio</div><div style="color:var(--accent); font-weight:600;">$${p.precio.toFixed(2)}</div></div>
+                        <div><div style="color:var(--text-muted);">Stock</div><div style="color:var(--success); font-weight:600;">${p.stock}</div></div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function loadClientesGrid() {
+            const { data: clientes } = await supabase.from('clientes').select('*');
+            const grid = document.getElementById('clientesGrid');
+
+            if (!clientes || clientes.length === 0) {
+                grid.innerHTML = '<div style="grid-column:1/-1; text-align:center; color:var(--text-muted);">Sin clientes</div>';
+                return;
+            }
+
+            grid.innerHTML = clientes.map(c => `
+                <div class="card">
+                    <h3 style="color:var(--accent); margin-bottom:1rem;">${c.nombre}</h3>
+                    <div style="color:var(--text-muted);">📱 ${c.telefono || 'Sin teléfono'}</div>
+                    <div style="color:var(--text-muted);">✉️ ${c.correo || 'Sin correo'}</div>
+                </div>
+            `).join('');
+        }
+
+        async function loadUsuariosTable() {
+            const { data: users } = await supabase.from('users').select('*');
+            const tbody = document.getElementById('usuariosTable');
+
+            if (!users || users.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="3">Sin usuarios</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = users.map(u => `
+                <tr>
+                    <td>${u.name}</td>
+                    <td>${u.username}</td>
+                    <td><span class="badge badge-primary">${u.role.toUpperCase()}</span></td>
+                </tr>
+            `).join('');
+        }
+
+        async function saveVenta() {
+            const fecha = document.getElementById('ventaFecha').value;
+            const clienteId = document.getElementById('ventaCliente').value;
+            const total = parseFloat(document.getElementById('ventaTotal').value) || 0;
+            const costo = parseFloat(document.getElementById('ventaCosto').value) || 0;
+
+            if (!fecha || !clienteId || total <= 0) {
+                alert('⚠️ Completa todos los campos');
+                return;
+            }
+
+            const { data: cliente } = await supabase.from('clientes').select('nombre').eq('id', clienteId).single();
+
+            await supabase.from('ventas').insert([{
+                id: 'venta_' + Date.now(),
+                user_id: currentUser.id,
+                cliente_id: clienteId,
+                cliente_nombre: cliente.nombre,
+                fecha,
+                total,
+                costo,
+                utilidad: total - costo,
+                margen: ((total - costo) / total * 100).toFixed(1),
+                created_by: currentUser.name,
+                created_at: new Date().toISOString()
+            }]);
+
+            closeModal('ventaModal');
+            loadVentasTable();
+            loadDashboard();
+        }
+
+        async function saveProducto() {
+            const nombre = document.getElementById('productoNombre').value.trim();
+            const sku = document.getElementById('productoSKU').value.trim();
+            const categoria = document.getElementById('productoCategoria').value;
+            const costo = parseFloat(document.getElementById('productoCosto').value) || 0;
+            const precio = parseFloat(document.getElementById('productoPrecio').value) || 0;
+            const stock = parseInt(document.getElementById('productoStock').value) || 0;
+            const stockMin = parseInt(document.getElementById('productoStockMin').value) || 5;
+
+            if (!nombre || !sku || costo < 0 || precio < 0) {
+                alert('⚠️ Completa campos requeridos');
+                return;
+            }
+
+            await supabase.from('productos').insert([{
+                id: 'prod_' + Date.now(),
+                nombre,
+                sku,
+                categoria,
+                costo,
+                precio,
+                stock,
+                stock_min: stockMin,
+                margen: precio > 0 ? ((precio - costo) / precio * 100).toFixed(1) : 0,
+                created_by: currentUser.name,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+            }]);
+
+            closeModal('productoModal');
+            loadProductosGrid();
+            loadDashboard();
+        }
+
+        async function saveCliente() {
+            const nombre = document.getElementById('clienteNombre').value.trim();
+            const telefono = document.getElementById('clienteTelefono').value.trim();
+            const correo = document.getElementById('clienteCorreo').value.trim();
+
+            if (!nombre) {
+                alert('⚠️ Nombre requerido');
+                return;
+            }
+
+            await supabase.from('clientes').insert([{
+                id: 'cliente_' + Date.now(),
+                nombre,
+                telefono,
+                correo,
+                created_by: currentUser.name,
+                created_at: new Date().toISOString()
+            }]);
+
+            closeModal('clienteModal');
+            loadClientesGrid();
+
+            const select = document.getElementById('ventaCliente');
+            const option = document.createElement('option');
+            option.value = 'cliente_' + Date.now();
+            option.textContent = nombre;
+            select.appendChild(option);
+        }
+
+        async function saveUsuario() {
+            if (currentUser.role !== 'admin') {
+                alert('❌ Solo admin puede crear usuarios');
+                return;
+            }
+
+            const nombre = document.getElementById('usuarioNombre').value.trim();
+            const username = document.getElementById('usuarioUser').value.trim();
+            const pin = document.getElementById('usuarioPin').value.trim();
+            const rol = document.getElementById('usuarioRol').value;
+
+            if (!nombre || !username || pin.length !== 4) {
+                alert('⚠️ Datos inválidos');
+                return;
+            }
+
+            await supabase.from('users').insert([{
+                id: 'user_' + Date.now(),
+                name: nombre,
+                username,
+                pin,
+                role: rol,
+                created_by: currentUser.name,
+                created_at: new Date().toISOString()
+            }]);
+
+            closeModal('usuarioModal');
+            loadUsuariosTable();
+        }
+
+        function switchModule(moduleId) {
+            document.querySelectorAll('.module').forEach(m => m.classList.remove('active'));
+            document.querySelectorAll('.menu-item').forEach(m => m.classList.remove('active'));
+            document.getElementById(moduleId).classList.add('active');
+            event.target.closest('.menu-item').classList.add('active');
+
+            const titles = {
+                'dashboard': '📊 Dashboard',
+                'ventas': '💰 Ventas',
+                'almacen': '📦 Almacén',
+                'clientes': '👥 Clientes',
+                'facturas': '📄 Mis Facturas',
+                'usuarios': '🔑 Usuarios'
+            };
+            document.getElementById('pageTitle').textContent = titles[moduleId];
+        }
+
+        function openVentaModal() {
+            document.getElementById('ventaFecha').valueAsDate = new Date();
+            document.getElementById('ventaModal').classList.add('active');
+        }
+
+        function openProductoModal() {
+            document.getElementById('productoModal').classList.add('active');
+        }
+
+        function openClienteModal() {
+            document.getElementById('clienteModal').classList.add('active');
+        }
+
+        function openUsuarioModal() {
+            if (currentUser.role !== 'admin') {
+                alert('❌ Solo admin');
+                return;
+            }
+            document.getElementById('usuarioModal').classList.add('active');
+        }
+
+        function closeModal(id) {
+            document.getElementById(id).classList.remove('active');
+        }
+
+        function logout() {
+            if (confirm('¿Salir?')) {
+                currentUser = null;
+                document.getElementById('loginScreen').classList.add('active');
+                document.getElementById('sidebar').style.display = 'none';
+                document.getElementById('mainContent').style.display = 'none';
+            }
+        }
+
+        window.addEventListener('click', e => {
+            if (e.target.classList.contains('modal')) {
+                e.target.classList.remove('active');
+            }
+        });
+
+        document.addEventListener('DOMContentLoaded', initSupabase);
+    </script>
+</body>
+</html>

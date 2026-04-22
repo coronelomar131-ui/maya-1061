@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Maya Autopartes - Setup Supabase</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto;
+            background: linear-gradient(135deg, #1a3a52 0%, #0f1419 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .setup-box {
+            background: #1a2332;
+            border: 1px solid #2d3d4f;
+            border-radius: 12px;
+            padding: 2rem;
+            max-width: 500px;
+            width: 100%;
+        }
+
+        h1 {
+            color: #ff8c00;
+            margin-bottom: 0.5rem;
+            font-size: 1.8rem;
+        }
+
+        .subtitle {
+            color: #9ca3af;
+            margin-bottom: 2rem;
+            font-size: 0.95rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        label {
+            display: block;
+            color: #e0e0e0;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+        }
+
+        input {
+            width: 100%;
+            padding: 0.75rem;
+            background: #0f1419;
+            border: 1px solid #2d3d4f;
+            color: #e0e0e0;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            font-family: monospace;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: #ff8c00;
+            box-shadow: 0 0 0 3px rgba(255, 140, 0, 0.1);
+        }
+
+        .btn {
+            width: 100%;
+            padding: 0.75rem;
+            background: #ff8c00;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 1rem;
+        }
+
+        .btn:hover {
+            background: #e67e00;
+            transform: translateY(-2px);
+        }
+
+        .alert {
+            padding: 1rem;
+            border-radius: 6px;
+            margin-bottom: 1rem;
+        }
+
+        .alert-success {
+            background: rgba(25, 135, 84, 0.1);
+            color: #a8e6c1;
+            border: 1px solid #198754;
+        }
+
+        .alert-error {
+            background: rgba(220, 53, 69, 0.1);
+            color: #ff8a8a;
+            border: 1px solid #dc3545;
+        }
+
+        .info {
+            background: rgba(26, 58, 82, 0.2);
+            color: #9ca3af;
+            padding: 1rem;
+            border-radius: 6px;
+            margin-top: 2rem;
+            font-size: 0.9rem;
+            line-height: 1.6;
+        }
+
+        code {
+            background: #0f1419;
+            padding: 0.2rem 0.4rem;
+            border-radius: 3px;
+            font-family: monospace;
+            color: #7dd3fc;
+        }
+    </style>
+</head>
+<body>
+    <div class="setup-box">
+        <h1>🔧 Maya Autopartes</h1>
+        <p class="subtitle">Configuración Online - Supabase</p>
+
+        <div id="alert"></div>
+
+        <div class="form-group">
+            <label>SUPABASE_URL</label>
+            <input type="text" id="supabaseUrl" placeholder="https://xxxxx.supabase.co">
+            <small style="color: #9ca3af;">De: Project Settings → API → Project URL</small>
+        </div>
+
+        <div class="form-group">
+            <label>SUPABASE_ANON_KEY</label>
+            <input type="text" id="supabaseKey" placeholder="eyJhbGc...">
+            <small style="color: #9ca3af;">De: Project Settings → API → anon (public)</small>
+        </div>
+
+        <button class="btn" onclick="testConnection()">✅ Probar Conexión</button>
+
+        <div class="info">
+            <strong>📝 Cómo obtener credenciales:</strong><br><br>
+            1. Ve a <code>supabase.com</code><br>
+            2. Abre tu proyecto<br>
+            3. Click en <code>Settings</code> (rueda abajo)<br>
+            4. Vé a <code>API</code><br>
+            5. Copia <code>Project URL</code><br>
+            6. Copia <code>anon (public)</code> key<br>
+            7. Pégalas aquí<br><br>
+            ⚠️ <strong>Importante:</strong> Copia las credenciales tal cual, sin espacios.
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        async function testConnection() {
+            const url = document.getElementById('supabaseUrl').value.trim();
+            const key = document.getElementById('supabaseKey').value.trim();
+
+            if (!url || !key) {
+                showAlert('⚠️ Completa URL y KEY', 'error');
+                return;
+            }
+
+            try {
+                const supabase = window.supabase.createClient(url, key);
+
+                // Test connection
+                const { data, error } = await supabase.from('users').select('count', { count: 'exact' });
+
+                if (error) {
+                    showAlert('❌ Error: ' + error.message, 'error');
+                    return;
+                }
+
+                // Success - save to localStorage and redirect
+                localStorage.setItem('SUPABASE_URL', url);
+                localStorage.setItem('SUPABASE_KEY', key);
+
+                showAlert('✅ ¡Conexión exitosa! Abriendo app...', 'success');
+                setTimeout(() => {
+                    window.location.href = 'index.html';
+                }, 2000);
+
+            } catch (e) {
+                showAlert('❌ Error: ' + e.message, 'error');
+            }
+        }
+
+        function showAlert(msg, type) {
+            const alert = document.getElementById('alert');
+            alert.innerHTML = `<div class="alert alert-${type}">${msg}</div>`;
+        }
+
+        // Check if already configured
+        window.addEventListener('load', () => {
+            const url = localStorage.getItem('SUPABASE_URL');
+            if (url) {
+                document.getElementById('supabaseUrl').value = url;
+            }
+        });
+    </script>
+</body>
+</html>
