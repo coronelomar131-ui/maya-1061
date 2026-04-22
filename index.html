@@ -280,15 +280,20 @@
                                     <tr>
                                         <th>Fecha</th>
                                         <th>Cliente</th>
+                                        <th>Cant.</th>
                                         <th>Responsable</th>
-                                        <th>Total</th>
-                                        <th>Costo</th>
+                                        <th>Reporte</th>
                                         <th>Status</th>
+                                        <th>Total</th>
+                                        <th>Utilidad</th>
+                                        <th>Factura</th>
+                                        <th>Guía</th>
+                                        <th>Cobro</th>
                                         <th>Acciones</th>
                                     </tr>
                                 </thead>
                                 <tbody id="ventasTable">
-                                    <tr><td colspan="7" style="text-align: center; color: var(--muted);">Cargando...</td></tr>
+                                    <tr><td colspan="12" style="text-align: center; color: var(--muted);">Cargando...</td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -413,34 +418,107 @@
 
     <!-- MODALS -->
     <div class="modal" id="ventaModal">
-        <div class="modal-content">
+        <div class="modal-content" style="max-width: 600px;">
             <h2 style="color: var(--primary); margin-bottom: 1.5rem;">Nueva Venta</h2>
-            <div class="form-group">
-                <label>Fecha</label>
-                <input type="date" id="venta_fecha" required>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <div class="form-group">
+                    <label>Fecha Venta</label>
+                    <input type="date" id="venta_fecha" required>
+                </div>
+                <div class="form-group">
+                    <label>Cantidad</label>
+                    <input type="number" id="venta_cantidad" value="1" min="1">
+                </div>
             </div>
+
             <div class="form-group">
                 <label>Cliente</label>
-                <input type="text" id="venta_cliente" placeholder="Nombre cliente" required>
+                <select id="venta_cliente" onchange="autocompletarCliente()" required style="width: 100%; padding: 0.6rem; border: 1px solid #d0dae8; border-radius: 4px;">
+                    <option value="">Seleccionar cliente...</option>
+                </select>
             </div>
+
             <div class="form-group">
-                <label>Responsable</label>
-                <input type="text" id="venta_responsable" required>
+                <label>Dirección</label>
+                <input type="text" id="venta_direccion" readonly style="background: #f5f7fb;">
             </div>
-            <div class="form-group">
-                <label>Total</label>
-                <input type="number" id="venta_total" step="0.01" required>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <div class="form-group">
+                    <label>Responsable</label>
+                    <input type="text" id="venta_responsable" required>
+                </div>
+                <div class="form-group">
+                    <label>Nº Reporte</label>
+                    <input type="text" id="venta_reporte">
+                </div>
             </div>
-            <div class="form-group">
-                <label>Costo</label>
-                <input type="number" id="venta_costo" step="0.01">
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <div class="form-group">
+                    <label>Status (A/B/C)</label>
+                    <select id="venta_status" required style="width: 100%; padding: 0.6rem; border: 1px solid #d0dae8; border-radius: 4px;">
+                        <option value="">Seleccionar...</option>
+                        <option value="A">A - Costo Standard</option>
+                        <option value="B">B - Costo Medio</option>
+                        <option value="C">C - Costo Alto</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Total Valor</label>
+                    <input type="number" id="venta_total" step="0.01" required>
+                </div>
             </div>
-            <div class="form-group">
-                <label>Status</label>
-                <input type="text" id="venta_status" placeholder="Pendiente/Pagado">
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <div class="form-group">
+                    <label>Costo Compra</label>
+                    <input type="number" id="venta_costo" step="0.01" onchange="calcularUtilidad()">
+                </div>
+                <div class="form-group">
+                    <label>Utilidad</label>
+                    <input type="number" id="venta_utilidad" step="0.01" readonly style="background: #f5f7fb; color: var(--grn); font-weight: 600;">
+                </div>
             </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <div style="display: flex; align-items: center; gap: 1rem;">
+                    <input type="checkbox" id="venta_factura" onchange="toggleFactura()">
+                    <label style="margin: 0;">¿Con Factura?</label>
+                </div>
+                <div style="display: flex; align-items: center; gap: 1rem;">
+                    <input type="checkbox" id="venta_cobrando">
+                    <label style="margin: 0;">¿Cobrando?</label>
+                </div>
+            </div>
+
+            <div id="facturaFields" style="display: none;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div class="form-group">
+                        <label>Nº Factura</label>
+                        <input type="text" id="venta_numero_factura">
+                    </div>
+                    <div class="form-group">
+                        <label>Fecha Factura</label>
+                        <input type="date" id="venta_fecha_factura">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Días Vencidos</label>
+                    <input type="number" id="venta_dias_vencidos" value="0">
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <div class="form-group">
+                    <label>Nº Guía</label>
+                    <input type="text" id="venta_guia">
+                </div>
+            </div>
+
             <div style="display: flex; gap: 1rem;">
-                <button class="btn btn-primary" style="flex: 1;" onclick="saveVenta()">Guardar</button>
+                <button class="btn btn-primary" style="flex: 1;" onclick="saveVenta()">Guardar Venta</button>
                 <button class="btn" style="flex: 1; background: #ecf0f7; color: var(--primary);" onclick="closeModal('ventaModal')">Cancelar</button>
             </div>
         </div>
@@ -670,10 +748,15 @@
                 <tr>
                     <td>${v.fecha}</td>
                     <td>${v.cliente}</td>
+                    <td>${v.cantidad}</td>
                     <td>${v.responsable}</td>
+                    <td>${v.reporte || '-'}</td>
+                    <td><span class="badge badge-info">${v.status || '-'}</span></td>
                     <td>$${(v.total || 0).toFixed(2)}</td>
-                    <td>$${(v.costo || 0).toFixed(2)}</td>
-                    <td><span class="badge badge-info">${v.status || 'N/A'}</span></td>
+                    <td>$${(v.utilidad || 0).toFixed(2)}</td>
+                    <td>${v.factura ? '✅' : '❌'}</td>
+                    <td>${v.guia || '-'}</td>
+                    <td>${v.cobrando ? '💰' : '⏳'}</td>
                     <td>
                         <button class="btn" style="font-size: 0.8rem; padding: 0.3rem 0.6rem; background: #ecf0f7; color: var(--primary);" onclick="deleteVenta(${v.id})">🗑️</button>
                     </td>
@@ -774,19 +857,68 @@
         }
 
         // SAVE FUNCTIONS
+        async function autocompletarCliente() {
+            const clienteId = document.getElementById('venta_cliente').value;
+            if (!clienteId) {
+                document.getElementById('venta_direccion').value = '';
+                return;
+            }
+            const { data: cliente } = await db.from('clientes').select('*').eq('id', clienteId).single();
+            if (cliente) {
+                document.getElementById('venta_direccion').value = cliente.direccion || '';
+            }
+        }
+
+        function toggleFactura() {
+            const conFactura = document.getElementById('venta_factura').checked;
+            document.getElementById('facturaFields').style.display = conFactura ? 'block' : 'none';
+        }
+
+        function calcularUtilidad() {
+            const total = parseFloat(document.getElementById('venta_total').value) || 0;
+            const costo = parseFloat(document.getElementById('venta_costo').value) || 0;
+            const utilidad = total - costo;
+            document.getElementById('venta_utilidad').value = utilidad.toFixed(2);
+        }
+
         async function saveVenta() {
+            const clienteId = document.getElementById('venta_cliente').value;
+            const clienteSelect = document.getElementById('venta_cliente');
+            const clienteNombre = clienteSelect.options[clienteSelect.selectedIndex]?.text || '';
+
             const id = Date.now();
-            const { error } = await db.from('ventas').insert([{
+            const venta = {
                 id,
                 fecha: document.getElementById('venta_fecha').value,
-                cliente: document.getElementById('venta_cliente').value,
+                cliente_id: parseInt(clienteId) || null,
+                cliente: clienteNombre,
+                direccion: document.getElementById('venta_direccion').value,
+                cantidad: parseInt(document.getElementById('venta_cantidad').value) || 1,
                 responsable: document.getElementById('venta_responsable').value,
+                reporte: document.getElementById('venta_reporte').value,
+                status: document.getElementById('venta_status').value,
                 total: parseFloat(document.getElementById('venta_total').value) || 0,
                 costo: parseFloat(document.getElementById('venta_costo').value) || 0,
-                status: document.getElementById('venta_status').value
-            }]);
-            if (error) alert('Error: ' + error.message);
-            else { toast('✅ Venta guardada'); closeModal('ventaModal'); renderVentas(); renderDashboard(); }
+                utilidad: parseFloat(document.getElementById('venta_utilidad').value) || 0,
+                factura: document.getElementById('venta_factura').checked,
+                numero_factura: document.getElementById('venta_numero_factura').value || null,
+                guia: document.getElementById('venta_guia').value,
+                cobrando: document.getElementById('venta_cobrando').checked,
+                fecha_factura: document.getElementById('venta_fecha_factura').value || null,
+                dias_vencidos: parseInt(document.getElementById('venta_dias_vencidos').value) || 0
+            };
+
+            const { error } = await db.from('ventas').insert([venta]);
+            if (error) {
+                alert('Error: ' + error.message);
+            } else {
+                toast('✅ Venta guardada');
+                closeModal('ventaModal');
+                renderVentas();
+                renderDashboard();
+                // Limpiar formulario
+                document.getElementById('ventaModal').querySelector('form')?.reset();
+            }
         }
 
         async function saveProducto() {
@@ -885,8 +1017,20 @@
         }
 
         // MODALS
-        function openVentaModal() {
+        async function openVentaModal() {
             document.getElementById('venta_fecha').valueAsDate = new Date();
+
+            // Cargar clientes
+            const { data: clientes } = await db.from('clientes').select('id, nombre');
+            const select = document.getElementById('venta_cliente');
+            select.innerHTML = '<option value="">Seleccionar cliente...</option>';
+            (clientes || []).forEach(c => {
+                const option = document.createElement('option');
+                option.value = c.id;
+                option.textContent = c.nombre;
+                select.appendChild(option);
+            });
+
             document.getElementById('ventaModal').classList.add('active');
         }
 
