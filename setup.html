@@ -202,10 +202,10 @@
 
         // Check if already configured
         window.addEventListener('load', () => {
-            const url = localStorage.getItem('SUPABASE_URL');
-            if (url) {
-                document.getElementById('supabaseUrl').value = url;
-            }
+            const url = localStorage.getItem('SUPABASE_URL') || 'https://edjeuzmjglrmcwnqdzol.supabase.co';
+            const key = localStorage.getItem('SUPABASE_KEY') || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVkamV1em1qZ2xybWN3bnFkem9sIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4ODcxMTYsImV4cCI6MjA5MjQ2MzExNn0.19qPKjM3K-47Evt2g1wGPKvjaEit8MEmPwjdx2yOvd8';
+            document.getElementById('supabaseUrl').value = url;
+            document.getElementById('supabaseKey').value = key;
         });
     </script>
 </body>
