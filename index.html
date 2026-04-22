@@ -300,7 +300,7 @@
     </div>
 
     <script>
-        let supabase = null;
+        let sbClient = null;
         let currentUser = null;
 
         async function initSupabase() {
@@ -312,12 +312,12 @@
                 return;
             }
 
-            supabase = window.supabase.createClient(url, key);
+            sbClient = window.supabase.createClient(url, key);
             await loadUsers();
         }
 
         async function loadUsers() {
-            const { data: users } = await supabase.from('users').select('*');
+            const { data: users } = await sbClient.from('users').select('*');
             if (!users || users.length === 0) {
                 showSetupMode();
             } else {
@@ -345,7 +345,7 @@
                 return;
             }
 
-            const { error } = await supabase.from('users').insert([{
+            const { error } = await sbClient.from('users').insert([{
                 id: 'user_' + Date.now(),
                 name,
                 username,
@@ -416,8 +416,8 @@
             const totalHoy = (ventas || []).reduce((sum, v) => sum + v.total, 0);
             const utilHoy = (ventas || []).reduce((sum, v) => sum + v.utilidad, 0);
 
-            const { data: productos } = await supabase.from('productos').select('*');
-            const { data: clientes } = await supabase.from('clientes').select('*');
+            const { data: productos } = await sbClient.from('productos').select('*');
+            const { data: clientes } = await sbClient.from('clientes').select('*');
 
             document.getElementById('kpiVentasHoy').textContent = '$' + totalHoy.toFixed(2);
             document.getElementById('kpiUtilidadHoy').textContent = '$' + utilHoy.toFixed(2);
@@ -456,7 +456,7 @@
         }
 
         async function loadProductosGrid() {
-            const { data: productos } = await supabase.from('productos').select('*');
+            const { data: productos } = await sbClient.from('productos').select('*');
             const grid = document.getElementById('productosGrid');
 
             if (!productos || productos.length === 0) {
@@ -477,7 +477,7 @@
         }
 
         async function loadClientesGrid() {
-            const { data: clientes } = await supabase.from('clientes').select('*');
+            const { data: clientes } = await sbClient.from('clientes').select('*');
             const grid = document.getElementById('clientesGrid');
 
             if (!clientes || clientes.length === 0) {
@@ -495,7 +495,7 @@
         }
 
         async function loadUsuariosTable() {
-            const { data: users } = await supabase.from('users').select('*');
+            const { data: users } = await sbClient.from('users').select('*');
             const tbody = document.getElementById('usuariosTable');
 
             if (!users || users.length === 0) {
@@ -523,9 +523,9 @@
                 return;
             }
 
-            const { data: cliente } = await supabase.from('clientes').select('nombre').eq('id', clienteId).single();
+            const { data: cliente } = await sbClient.from('clientes').select('nombre').eq('id', clienteId).single();
 
-            await supabase.from('ventas').insert([{
+            await sbClient.from('ventas').insert([{
                 id: 'venta_' + Date.now(),
                 user_id: currentUser.id,
                 cliente_id: clienteId,
@@ -558,7 +558,7 @@
                 return;
             }
 
-            await supabase.from('productos').insert([{
+            await sbClient.from('productos').insert([{
                 id: 'prod_' + Date.now(),
                 nombre,
                 sku,
@@ -588,7 +588,7 @@
                 return;
             }
 
-            await supabase.from('clientes').insert([{
+            await sbClient.from('clientes').insert([{
                 id: 'cliente_' + Date.now(),
                 nombre,
                 telefono,
@@ -623,7 +623,7 @@
                 return;
             }
 
-            await supabase.from('users').insert([{
+            await sbClient.from('users').insert([{
                 id: 'user_' + Date.now(),
                 name: nombre,
                 username,
