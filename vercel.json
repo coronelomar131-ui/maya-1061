@@ -1,0 +1,10 @@
+{
+  "buildCommand": "echo 'Ready to deploy'",
+  "outputDirectory": ".",
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/"
+    }
+  ]
+}
