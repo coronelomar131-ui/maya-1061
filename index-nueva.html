@@ -1,0 +1,1074 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔧 Maya Autopartes</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --primary: #1E4F7A;
+            --teal: #3BBCD4;
+            --bg: #eef2f7;
+            --white: #fff;
+            --txt: #0d2035;
+            --muted: #5a7596;
+            --red: #dc3545;
+            --grn: #198754;
+            --amb: #d97706;
+        }
+        body {
+            background: var(--bg);
+            color: var(--txt);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            min-height: 100vh;
+        }
+        .container { display: flex; min-height: 100vh; }
+        .sidebar {
+            width: 224px;
+            background: var(--primary);
+            color: white;
+            padding: 1rem 0;
+            position: fixed;
+            height: 100vh;
+            overflow-y: auto;
+            box-shadow: 3px 0 18px rgba(0,0,0,.25);
+        }
+        .logo {
+            text-align: center;
+            padding: 1.5rem;
+            font-size: 2rem;
+            border-bottom: 3px solid var(--teal);
+            margin-bottom: 1rem;
+        }
+        .nav-item {
+            padding: 0.8rem 1.5rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            border-left: 3px solid transparent;
+        }
+        .nav-item:hover {
+            background: rgba(255,255,255,.1);
+            border-left-color: var(--teal);
+        }
+        .nav-item.active {
+            background: rgba(59,188,212,.16);
+            border-left-color: var(--teal);
+            color: var(--teal);
+        }
+        .main { margin-left: 224px; flex: 1; display: flex; flex-direction: column; }
+        .topbar {
+            background: white;
+            border-bottom: 2px solid var(--teal);
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 1px 8px rgba(30,79,122,.1);
+        }
+        .topbar h1 { font-size: 1.5rem; color: var(--primary); }
+        .content { flex: 1; padding: 2rem; overflow-y: auto; }
+        .page { display: none; }
+        .page.active { display: block; }
+        .card {
+            background: white;
+            border-radius: 6px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 1px 8px rgba(30,79,122,.1);
+        }
+        .btn {
+            padding: 0.6rem 1.2rem;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s;
+            font-size: 0.9rem;
+        }
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+        .btn-primary:hover {
+            background: #163d62;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(30,79,122,.3);
+        }
+        .btn-teal {
+            background: var(--teal);
+            color: white;
+        }
+        .btn-teal:hover {
+            background: #2fa8be;
+        }
+        .btn-danger {
+            background: var(--red);
+            color: white;
+        }
+        .btn-success {
+            background: var(--grn);
+            color: white;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+        th {
+            background: #f5f7fb;
+            padding: 1rem;
+            text-align: left;
+            font-weight: 600;
+            color: var(--primary);
+            border-bottom: 2px solid #d0dae8;
+        }
+        td {
+            padding: 0.8rem 1rem;
+            border-bottom: 1px solid #ecf0f7;
+        }
+        tr:hover {
+            background: #f9fafb;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 1.5rem;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal.active { display: flex; }
+        .modal-content {
+            background: white;
+            border-radius: 8px;
+            padding: 2rem;
+            width: 90%;
+            max-width: 500px;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 10px 40px rgba(0,0,0,.3);
+        }
+        .form-group {
+            margin-bottom: 1rem;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 0.4rem;
+            font-weight: 600;
+            color: var(--primary);
+        }
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 0.6rem;
+            border: 1px solid #d0dae8;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            font-family: inherit;
+        }
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: var(--teal);
+            box-shadow: 0 0 0 3px rgba(59,188,212,.1);
+        }
+        .toast {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            background: var(--grn);
+            color: white;
+            padding: 1rem 1.5rem;
+            border-radius: 6px;
+            box-shadow: 0 4px 12px rgba(0,0,0,.2);
+            z-index: 2000;
+            animation: slideUp 0.3s ease;
+        }
+        @keyframes slideUp {
+            from { transform: translateY(100%); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        .badge {
+            display: inline-block;
+            padding: 0.3rem 0.6rem;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+        .badge-info { background: rgba(59,188,212,.2); color: var(--teal); }
+        .badge-warning { background: rgba(217,119,6,.2); color: var(--amb); }
+        .badge-danger { background: rgba(220,53,69,.2); color: var(--red); }
+        .badge-success { background: rgba(25,135,84,.2); color: var(--grn); }
+        .loading { text-align: center; padding: 2rem; color: var(--muted); }
+        @media (max-width: 768px) {
+            .sidebar { width: 60px; }
+            .main { margin-left: 60px; }
+            .nav-item { padding: 0.8rem 0.5rem; font-size: 0.7rem; }
+            .topbar { padding: 1rem; }
+            .content { padding: 1rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- SIDEBAR -->
+        <div class="sidebar">
+            <div class="logo">🔧</div>
+            <div class="nav-item active" onclick="switchPage('dashboard')">📊 Dashboard</div>
+            <div class="nav-item" onclick="switchPage('ventas')">💰 Ventas</div>
+            <div class="nav-item" onclick="switchPage('almacen')">📦 Almacén</div>
+            <div class="nav-item" onclick="switchPage('clientes')">👥 Clientes</div>
+            <div class="nav-item" onclick="switchPage('entregas')">📋 Entregas</div>
+            <div class="nav-item" onclick="switchPage('usuarios')">🔑 Usuarios</div>
+            <div style="margin-top: auto; padding: 1rem; border-top: 1px solid rgba(255,255,255,.1);">
+                <button class="btn btn-danger" style="width: 100%; margin-bottom: 0.5rem;" onclick="logout()">Salir</button>
+                <span id="userInfo" style="font-size: 0.8rem; color: rgba(255,255,255,.7);">Usuario</span>
+            </div>
+        </div>
+
+        <!-- MAIN CONTENT -->
+        <div class="main">
+            <div class="topbar">
+                <h1 id="pageTitle">🔧 Maya Autopartes</h1>
+                <div id="topbarRight"></div>
+            </div>
+
+            <div class="content">
+                <!-- DASHBOARD -->
+                <div id="dashboard" class="page active">
+                    <div class="card">
+                        <h2 style="color: var(--primary); margin-bottom: 1.5rem;">Dashboard</h2>
+                        <div class="grid">
+                            <div class="card" style="text-align: center;">
+                                <div style="font-size: 2rem; font-weight: 700; color: var(--teal);" id="kpiVentas">$0</div>
+                                <div style="color: var(--muted); font-size: 0.9rem; margin-top: 0.5rem;">Ventas Hoy</div>
+                            </div>
+                            <div class="card" style="text-align: center;">
+                                <div style="font-size: 2rem; font-weight: 700; color: var(--grn);" id="kpiProductos">0</div>
+                                <div style="color: var(--muted); font-size: 0.9rem; margin-top: 0.5rem;">Productos</div>
+                            </div>
+                            <div class="card" style="text-align: center;">
+                                <div style="font-size: 2rem; font-weight: 700; color: var(--amb);" id="kpiClientes">0</div>
+                                <div style="color: var(--muted); font-size: 0.9rem; margin-top: 0.5rem;">Clientes</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- VENTAS -->
+                <div id="ventas" class="page">
+                    <div class="card">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                            <h2 style="color: var(--primary);">Ventas</h2>
+                            <button class="btn btn-primary" onclick="openVentaModal()">+ Nueva Venta</button>
+                        </div>
+                        <div style="overflow-x: auto;">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Fecha</th>
+                                        <th>Cliente</th>
+                                        <th>Cant.</th>
+                                        <th>Responsable</th>
+                                        <th>Reporte</th>
+                                        <th>Status</th>
+                                        <th>Total</th>
+                                        <th>Utilidad</th>
+                                        <th>Factura</th>
+                                        <th>Guía</th>
+                                        <th>Cobro</th>
+                                        <th>Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="ventasTable">
+                                    <tr><td colspan="12" style="text-align: center; color: var(--muted);">Cargando...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ALMACÉN -->
+                <div id="almacen" class="page">
+                    <div class="card">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                            <h2 style="color: var(--primary);">Almacén</h2>
+                            <button class="btn btn-primary" onclick="openProductoModal()">+ Nuevo Producto</button>
+                        </div>
+                        <div style="display: flex; gap: 1rem; margin-bottom: 1rem;">
+                            <input type="text" id="searchProducto" placeholder="Buscar..." style="flex: 1; padding: 0.6rem; border: 1px solid #d0dae8; border-radius: 4px;" onkeyup="renderAlmacen()">
+                            <select id="filterCategoria" style="padding: 0.6rem; border: 1px solid #d0dae8; border-radius: 4px;" onchange="renderAlmacen()">
+                                <option value="">Todas</option>
+                            </select>
+                        </div>
+                        <div style="overflow-x: auto;">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Producto</th>
+                                        <th>SKU</th>
+                                        <th>Categoría</th>
+                                        <th>Stock</th>
+                                        <th>Precio</th>
+                                        <th>Costo</th>
+                                        <th>Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="almacenTable">
+                                    <tr><td colspan="7" style="text-align: center; color: var(--muted);">Cargando...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CLIENTES -->
+                <div id="clientes" class="page">
+                    <div class="card">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                            <h2 style="color: var(--primary);">Clientes</h2>
+                            <button class="btn btn-primary" onclick="openClienteModal()">+ Nuevo Cliente</button>
+                        </div>
+                        <div style="overflow-x: auto;">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Nombre</th>
+                                        <th>RFC</th>
+                                        <th>Teléfono</th>
+                                        <th>Email</th>
+                                        <th>Crédito</th>
+                                        <th>Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="clientesTable">
+                                    <tr><td colspan="6" style="text-align: center; color: var(--muted);">Cargando...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ENTREGAS -->
+                <div id="entregas" class="page">
+                    <div class="card">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                            <h2 style="color: var(--primary);">Entregas</h2>
+                            <button class="btn btn-primary" onclick="openEntregaModal()">+ Nueva Entrega</button>
+                        </div>
+                        <div style="overflow-x: auto;">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Fecha</th>
+                                        <th>Cliente</th>
+                                        <th>Receptor</th>
+                                        <th>Guía</th>
+                                        <th>Status</th>
+                                        <th>Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="entregasTable">
+                                    <tr><td colspan="6" style="text-align: center; color: var(--muted);">Cargando...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- USUARIOS -->
+                <div id="usuarios" class="page">
+                    <div class="card">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                            <h2 style="color: var(--primary);">Usuarios</h2>
+                            <button class="btn btn-primary" onclick="openUsuarioModal()">+ Nuevo Usuario</button>
+                        </div>
+                        <div style="overflow-x: auto;">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Usuario</th>
+                                        <th>Nombre</th>
+                                        <th>Rol</th>
+                                        <th>Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="usuariosTable">
+                                    <tr><td colspan="4" style="text-align: center; color: var(--muted);">Cargando...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODALS -->
+    <div class="modal" id="ventaModal">
+        <div class="modal-content" style="max-width: 600px;">
+            <h2 style="color: var(--primary); margin-bottom: 1.5rem;">Nueva Venta</h2>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <div class="form-group">
+                    <label>Fecha Venta</label>
+                    <input type="date" id="venta_fecha" required>
+                </div>
+                <div class="form-group">
+                    <label>Cantidad</label>
+                    <input type="number" id="venta_cantidad" value="1" min="1">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Cliente</label>
+                <select id="venta_cliente" onchange="autocompletarCliente()" required style="width: 100%; padding: 0.6rem; border: 1px solid #d0dae8; border-radius: 4px;">
+                    <option value="">Seleccionar cliente...</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Dirección</label>
+                <input type="text" id="venta_direccion" readonly style="background: #f5f7fb;">
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <div class="form-group">
+                    <label>Responsable</label>
+                    <input type="text" id="venta_responsable" required>
+                </div>
+                <div class="form-group">
+                    <label>Nº Reporte</label>
+                    <input type="text" id="venta_reporte">
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <div class="form-group">
+                    <label>Status (A/B/C)</label>
+                    <select id="venta_status" required style="width: 100%; padding: 0.6rem; border: 1px solid #d0dae8; border-radius: 4px;">
+                        <option value="">Seleccionar...</option>
+                        <option value="A">A - Costo Standard</option>
+                        <option value="B">B - Costo Medio</option>
+                        <option value="C">C - Costo Alto</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Total Valor</label>
+                    <input type="number" id="venta_total" step="0.01" required>
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <div class="form-group">
+                    <label>Costo Compra</label>
+                    <input type="number" id="venta_costo" step="0.01" onchange="calcularUtilidad()">
+                </div>
+                <div class="form-group">
+                    <label>Utilidad</label>
+                    <input type="number" id="venta_utilidad" step="0.01" readonly style="background: #f5f7fb; color: var(--grn); font-weight: 600;">
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <div style="display: flex; align-items: center; gap: 1rem;">
+                    <input type="checkbox" id="venta_factura" onchange="toggleFactura()">
+                    <label style="margin: 0;">¿Con Factura?</label>
+                </div>
+                <div style="display: flex; align-items: center; gap: 1rem;">
+                    <input type="checkbox" id="venta_cobrando">
+                    <label style="margin: 0;">¿Cobrando?</label>
+                </div>
+            </div>
+
+            <div id="facturaFields" style="display: none;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div class="form-group">
+                        <label>Nº Factura</label>
+                        <input type="text" id="venta_numero_factura">
+                    </div>
+                    <div class="form-group">
+                        <label>Fecha Factura</label>
+                        <input type="date" id="venta_fecha_factura">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Días Vencidos</label>
+                    <input type="number" id="venta_dias_vencidos" value="0">
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <div class="form-group">
+                    <label>Nº Guía</label>
+                    <input type="text" id="venta_guia">
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 1rem;">
+                <button class="btn btn-primary" style="flex: 1;" onclick="saveVenta()">Guardar Venta</button>
+                <button class="btn" style="flex: 1; background: #ecf0f7; color: var(--primary);" onclick="closeModal('ventaModal')">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="productoModal">
+        <div class="modal-content">
+            <h2 style="color: var(--primary); margin-bottom: 1.5rem;">Nuevo Producto</h2>
+            <div class="form-group">
+                <label>Nombre</label>
+                <input type="text" id="prod_nombre" required>
+            </div>
+            <div class="form-group">
+                <label>SKU</label>
+                <input type="text" id="prod_sku" required>
+            </div>
+            <div class="form-group">
+                <label>Categoría</label>
+                <input type="text" id="prod_categoria">
+            </div>
+            <div class="form-group">
+                <label>Stock</label>
+                <input type="number" id="prod_stock" step="0.01" value="0">
+            </div>
+            <div class="form-group">
+                <label>Mínimo</label>
+                <input type="number" id="prod_min" step="0.01" value="5">
+            </div>
+            <div class="form-group">
+                <label>Máximo</label>
+                <input type="number" id="prod_max" step="0.01" value="100">
+            </div>
+            <div class="form-group">
+                <label>Costo</label>
+                <input type="number" id="prod_costo" step="0.01">
+            </div>
+            <div class="form-group">
+                <label>Precio</label>
+                <input type="number" id="prod_precio" step="0.01">
+            </div>
+            <div style="display: flex; gap: 1rem;">
+                <button class="btn btn-primary" style="flex: 1;" onclick="saveProducto()">Guardar</button>
+                <button class="btn" style="flex: 1; background: #ecf0f7; color: var(--primary);" onclick="closeModal('productoModal')">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="clienteModal">
+        <div class="modal-content">
+            <h2 style="color: var(--primary); margin-bottom: 1.5rem;">Nuevo Cliente</h2>
+            <div class="form-group">
+                <label>Nombre</label>
+                <input type="text" id="cli_nombre" required>
+            </div>
+            <div class="form-group">
+                <label>RFC</label>
+                <input type="text" id="cli_rfc">
+            </div>
+            <div class="form-group">
+                <label>Teléfono</label>
+                <input type="tel" id="cli_tel">
+            </div>
+            <div class="form-group">
+                <label>Email</label>
+                <input type="email" id="cli_email">
+            </div>
+            <div class="form-group">
+                <label>Dirección</label>
+                <textarea id="cli_direccion" rows="2"></textarea>
+            </div>
+            <div style="display: flex; gap: 1rem;">
+                <button class="btn btn-primary" style="flex: 1;" onclick="saveCliente()">Guardar</button>
+                <button class="btn" style="flex: 1; background: #ecf0f7; color: var(--primary);" onclick="closeModal('clienteModal')">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="entregaModal">
+        <div class="modal-content">
+            <h2 style="color: var(--primary); margin-bottom: 1.5rem;">Nueva Entrega</h2>
+            <div class="form-group">
+                <label>Fecha</label>
+                <input type="date" id="ent_fecha" required>
+            </div>
+            <div class="form-group">
+                <label>Cliente</label>
+                <input type="text" id="ent_cliente" required>
+            </div>
+            <div class="form-group">
+                <label>Receptor</label>
+                <input type="text" id="ent_receptor">
+            </div>
+            <div class="form-group">
+                <label>Guía</label>
+                <input type="text" id="ent_guia">
+            </div>
+            <div class="form-group">
+                <label>Status</label>
+                <input type="text" id="ent_status" placeholder="Entregado/Pendiente">
+            </div>
+            <div style="display: flex; gap: 1rem;">
+                <button class="btn btn-primary" style="flex: 1;" onclick="saveEntrega()">Guardar</button>
+                <button class="btn" style="flex: 1; background: #ecf0f7; color: var(--primary);" onclick="closeModal('entregaModal')">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="usuarioModal">
+        <div class="modal-content">
+            <h2 style="color: var(--primary); margin-bottom: 1.5rem;">Nuevo Usuario</h2>
+            <div class="form-group">
+                <label>Usuario</label>
+                <input type="text" id="usr_usuario" required>
+            </div>
+            <div class="form-group">
+                <label>Contraseña</label>
+                <input type="password" id="usr_password" required>
+            </div>
+            <div class="form-group">
+                <label>Nombre</label>
+                <input type="text" id="usr_nombre">
+            </div>
+            <div class="form-group">
+                <label>Rol</label>
+                <select id="usr_rol">
+                    <option value="user">Usuario</option>
+                    <option value="admin">Administrador</option>
+                </select>
+            </div>
+            <div style="display: flex; gap: 1rem;">
+                <button class="btn btn-primary" style="flex: 1;" onclick="saveUsuario()">Guardar</button>
+                <button class="btn" style="flex: 1; background: #ecf0f7; color: var(--primary);" onclick="closeModal('usuarioModal')">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let db = null;
+        let currentUser = null;
+
+        async function init() {
+            const url = localStorage.getItem('SUPABASE_URL');
+            const key = localStorage.getItem('SUPABASE_KEY');
+
+            if (!url || !key) {
+                window.location.href = 'setup.html';
+                return;
+            }
+
+            db = window.supabase.createClient(url, key);
+
+            // Check if logged in
+            const user = localStorage.getItem('user');
+            if (!user) {
+                promptLogin();
+            } else {
+                currentUser = JSON.parse(user);
+                document.getElementById('userInfo').textContent = currentUser.nombre;
+                loadAllData();
+            }
+        }
+
+        function promptLogin() {
+            const usuario = prompt('Usuario:');
+            if (!usuario) return;
+            const password = prompt('Contraseña:');
+            if (!password) return;
+
+            // Aquí iría validación real contra BD
+            currentUser = { usuario, nombre: usuario, rol: 'user' };
+            localStorage.setItem('user', JSON.stringify(currentUser));
+            document.getElementById('userInfo').textContent = currentUser.nombre;
+            loadAllData();
+        }
+
+        async function loadAllData() {
+            renderDashboard();
+            renderVentas();
+            renderAlmacen();
+            renderClientes();
+            renderEntregas();
+            renderUsuarios();
+        }
+
+        function switchPage(page) {
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            document.getElementById(page).classList.add('active');
+
+            document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
+            event.target.classList.add('active');
+
+            const titles = {
+                dashboard: '📊 Dashboard',
+                ventas: '💰 Ventas',
+                almacen: '📦 Almacén',
+                clientes: '👥 Clientes',
+                entregas: '📋 Entregas',
+                usuarios: '🔑 Usuarios'
+            };
+            document.getElementById('pageTitle').textContent = titles[page] || 'Maya Autopartes';
+        }
+
+        async function renderDashboard() {
+            const { data: ventas } = await db.from('ventas').select('*');
+            const { data: productos } = await db.from('productos').select('*');
+            const { data: clientes } = await db.from('clientes').select('*');
+
+            const today = new Date().toISOString().split('T')[0];
+            const ventasHoy = (ventas || []).filter(v => v.fecha === today);
+            const totalHoy = ventasHoy.reduce((sum, v) => sum + (v.total || 0), 0);
+
+            document.getElementById('kpiVentas').textContent = '$' + totalHoy.toFixed(2);
+            document.getElementById('kpiProductos').textContent = (productos || []).length;
+            document.getElementById('kpiClientes').textContent = (clientes || []).length;
+        }
+
+        async function renderVentas() {
+            const { data: ventas } = await db.from('ventas').select('*').order('fecha', { ascending: false });
+            const tbody = document.getElementById('ventasTable');
+
+            if (!ventas || ventas.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align: center;">Sin ventas</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = (ventas || []).map(v => `
+                <tr>
+                    <td>${v.fecha}</td>
+                    <td>${v.cliente}</td>
+                    <td>${v.cantidad}</td>
+                    <td>${v.responsable}</td>
+                    <td>${v.reporte || '-'}</td>
+                    <td><span class="badge badge-info">${v.status || '-'}</span></td>
+                    <td>$${(v.total || 0).toFixed(2)}</td>
+                    <td>$${(v.utilidad || 0).toFixed(2)}</td>
+                    <td>${v.factura ? '✅' : '❌'}</td>
+                    <td>${v.guia || '-'}</td>
+                    <td>${v.cobrando ? '💰' : '⏳'}</td>
+                    <td>
+                        <button class="btn" style="font-size: 0.8rem; padding: 0.3rem 0.6rem; background: #ecf0f7; color: var(--primary);" onclick="deleteVenta(${v.id})">🗑️</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        async function renderAlmacen() {
+            const { data: productos } = await db.from('productos').select('*');
+            const tbody = document.getElementById('almacenTable');
+
+            if (!productos || productos.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align: center;">Sin productos</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = (productos || []).map(p => `
+                <tr>
+                    <td>${p.nombre}</td>
+                    <td>${p.sku}</td>
+                    <td>${p.categoria}</td>
+                    <td>${p.stock}</td>
+                    <td>$${(p.precio || 0).toFixed(2)}</td>
+                    <td>$${(p.costo || 0).toFixed(2)}</td>
+                    <td>
+                        <button class="btn" style="font-size: 0.8rem; padding: 0.3rem 0.6rem; background: #ecf0f7; color: var(--primary);" onclick="editProducto(${p.id})">✎</button>
+                        <button class="btn" style="font-size: 0.8rem; padding: 0.3rem 0.6rem; background: #ecf0f7; color: var(--primary);" onclick="deleteProducto(${p.id})">🗑️</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        async function renderClientes() {
+            const { data: clientes } = await db.from('clientes').select('*');
+            const tbody = document.getElementById('clientesTable');
+
+            if (!clientes || clientes.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">Sin clientes</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = (clientes || []).map(c => `
+                <tr>
+                    <td>${c.nombre}</td>
+                    <td>${c.rfc || 'N/A'}</td>
+                    <td>${c.tel || 'N/A'}</td>
+                    <td>${c.email || 'N/A'}</td>
+                    <td>$${(c.credito || 0).toFixed(2)}</td>
+                    <td>
+                        <button class="btn" style="font-size: 0.8rem; padding: 0.3rem 0.6rem; background: #ecf0f7; color: var(--primary);" onclick="deleteCliente(${c.id})">🗑️</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        async function renderEntregas() {
+            const { data: entregas } = await db.from('entregas').select('*').order('fecha', { ascending: false });
+            const tbody = document.getElementById('entregasTable');
+
+            if (!entregas || entregas.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">Sin entregas</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = (entregas || []).map(e => `
+                <tr>
+                    <td>${e.fecha}</td>
+                    <td>${e.cliente}</td>
+                    <td>${e.receptor || 'N/A'}</td>
+                    <td>${e.guia || 'N/A'}</td>
+                    <td><span class="badge badge-success">${e.status || 'N/A'}</span></td>
+                    <td>
+                        <button class="btn" style="font-size: 0.8rem; padding: 0.3rem 0.6rem; background: #ecf0f7; color: var(--primary);" onclick="deleteEntrega(${e.id})">🗑️</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        async function renderUsuarios() {
+            const { data: usuarios } = await db.from('usuarios').select('*');
+            const tbody = document.getElementById('usuariosTable');
+
+            if (!usuarios || usuarios.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" style="text-align: center;">Sin usuarios</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = (usuarios || []).map(u => `
+                <tr>
+                    <td>${u.usuario}</td>
+                    <td>${u.nombre || 'N/A'}</td>
+                    <td><span class="badge badge-info">${u.rol}</span></td>
+                    <td>
+                        <button class="btn" style="font-size: 0.8rem; padding: 0.3rem 0.6rem; background: #ecf0f7; color: var(--primary);" onclick="deleteUsuario(${u.id})">🗑️</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        // SAVE FUNCTIONS
+        async function autocompletarCliente() {
+            const clienteId = document.getElementById('venta_cliente').value;
+            if (!clienteId) {
+                document.getElementById('venta_direccion').value = '';
+                return;
+            }
+            const { data: cliente } = await db.from('clientes').select('*').eq('id', clienteId).single();
+            if (cliente) {
+                document.getElementById('venta_direccion').value = cliente.direccion || '';
+            }
+        }
+
+        function toggleFactura() {
+            const conFactura = document.getElementById('venta_factura').checked;
+            document.getElementById('facturaFields').style.display = conFactura ? 'block' : 'none';
+        }
+
+        function calcularUtilidad() {
+            const total = parseFloat(document.getElementById('venta_total').value) || 0;
+            const costo = parseFloat(document.getElementById('venta_costo').value) || 0;
+            const utilidad = total - costo;
+            document.getElementById('venta_utilidad').value = utilidad.toFixed(2);
+        }
+
+        async function saveVenta() {
+            const clienteId = document.getElementById('venta_cliente').value;
+            const clienteSelect = document.getElementById('venta_cliente');
+            const clienteNombre = clienteSelect.options[clienteSelect.selectedIndex]?.text || '';
+
+            const id = Date.now();
+            const venta = {
+                id,
+                fecha: document.getElementById('venta_fecha').value,
+                cliente_id: parseInt(clienteId) || null,
+                cliente: clienteNombre,
+                direccion: document.getElementById('venta_direccion').value,
+                cantidad: parseInt(document.getElementById('venta_cantidad').value) || 1,
+                responsable: document.getElementById('venta_responsable').value,
+                reporte: document.getElementById('venta_reporte').value,
+                status: document.getElementById('venta_status').value,
+                total: parseFloat(document.getElementById('venta_total').value) || 0,
+                costo: parseFloat(document.getElementById('venta_costo').value) || 0,
+                utilidad: parseFloat(document.getElementById('venta_utilidad').value) || 0,
+                factura: document.getElementById('venta_factura').checked,
+                numero_factura: document.getElementById('venta_numero_factura').value || null,
+                guia: document.getElementById('venta_guia').value,
+                cobrando: document.getElementById('venta_cobrando').checked,
+                fecha_factura: document.getElementById('venta_fecha_factura').value || null,
+                dias_vencidos: parseInt(document.getElementById('venta_dias_vencidos').value) || 0
+            };
+
+            const { error } = await db.from('ventas').insert([venta]);
+            if (error) {
+                alert('Error: ' + error.message);
+            } else {
+                toast('✅ Venta guardada');
+                closeModal('ventaModal');
+                renderVentas();
+                renderDashboard();
+                // Limpiar formulario
+                document.getElementById('ventaModal').querySelector('form')?.reset();
+            }
+        }
+
+        async function saveProducto() {
+            const id = Date.now();
+            const { error } = await db.from('productos').insert([{
+                id,
+                nombre: document.getElementById('prod_nombre').value,
+                sku: document.getElementById('prod_sku').value,
+                categoria: document.getElementById('prod_categoria').value,
+                stock: parseFloat(document.getElementById('prod_stock').value) || 0,
+                min: parseFloat(document.getElementById('prod_min').value) || 5,
+                max: parseFloat(document.getElementById('prod_max').value) || 100,
+                costo: parseFloat(document.getElementById('prod_costo').value) || 0,
+                precio: parseFloat(document.getElementById('prod_precio').value) || 0
+            }]);
+            if (error) alert('Error: ' + error.message);
+            else { toast('✅ Producto guardado'); closeModal('productoModal'); renderAlmacen(); renderDashboard(); }
+        }
+
+        async function saveCliente() {
+            const id = Date.now();
+            const { error } = await db.from('clientes').insert([{
+                id,
+                nombre: document.getElementById('cli_nombre').value,
+                rfc: document.getElementById('cli_rfc').value,
+                tel: document.getElementById('cli_tel').value,
+                email: document.getElementById('cli_email').value,
+                direccion: document.getElementById('cli_direccion').value
+            }]);
+            if (error) alert('Error: ' + error.message);
+            else { toast('✅ Cliente guardado'); closeModal('clienteModal'); renderClientes(); renderDashboard(); }
+        }
+
+        async function saveEntrega() {
+            const id = Date.now();
+            const { error } = await db.from('entregas').insert([{
+                id,
+                fecha: document.getElementById('ent_fecha').value,
+                cliente: document.getElementById('ent_cliente').value,
+                receptor: document.getElementById('ent_receptor').value,
+                guia: document.getElementById('ent_guia').value,
+                status: document.getElementById('ent_status').value
+            }]);
+            if (error) alert('Error: ' + error.message);
+            else { toast('✅ Entrega guardada'); closeModal('entregaModal'); renderEntregas(); }
+        }
+
+        async function saveUsuario() {
+            const id = Date.now();
+            const { error } = await db.from('usuarios').insert([{
+                id,
+                usuario: document.getElementById('usr_usuario').value,
+                password: document.getElementById('usr_password').value,
+                nombre: document.getElementById('usr_nombre').value,
+                rol: document.getElementById('usr_rol').value
+            }]);
+            if (error) alert('Error: ' + error.message);
+            else { toast('✅ Usuario guardado'); closeModal('usuarioModal'); renderUsuarios(); }
+        }
+
+        // DELETE FUNCTIONS
+        async function deleteVenta(id) {
+            if (!confirm('¿Eliminar?')) return;
+            await db.from('ventas').delete().eq('id', id);
+            toast('🗑️ Eliminado');
+            renderVentas();
+            renderDashboard();
+        }
+
+        async function deleteProducto(id) {
+            if (!confirm('¿Eliminar?')) return;
+            await db.from('productos').delete().eq('id', id);
+            toast('🗑️ Eliminado');
+            renderAlmacen();
+        }
+
+        async function deleteCliente(id) {
+            if (!confirm('¿Eliminar?')) return;
+            await db.from('clientes').delete().eq('id', id);
+            toast('🗑️ Eliminado');
+            renderClientes();
+        }
+
+        async function deleteEntrega(id) {
+            if (!confirm('¿Eliminar?')) return;
+            await db.from('entregas').delete().eq('id', id);
+            toast('🗑️ Eliminado');
+            renderEntregas();
+        }
+
+        async function deleteUsuario(id) {
+            if (!confirm('¿Eliminar?')) return;
+            await db.from('usuarios').delete().eq('id', id);
+            toast('🗑️ Eliminado');
+            renderUsuarios();
+        }
+
+        // MODALS
+        async function openVentaModal() {
+            document.getElementById('venta_fecha').valueAsDate = new Date();
+
+            // Cargar clientes
+            const { data: clientes } = await db.from('clientes').select('id, nombre');
+            const select = document.getElementById('venta_cliente');
+            select.innerHTML = '<option value="">Seleccionar cliente...</option>';
+            (clientes || []).forEach(c => {
+                const option = document.createElement('option');
+                option.value = c.id;
+                option.textContent = c.nombre;
+                select.appendChild(option);
+            });
+
+            document.getElementById('ventaModal').classList.add('active');
+        }
+
+        function openProductoModal() {
+            document.getElementById('productoModal').classList.add('active');
+        }
+
+        function openClienteModal() {
+            document.getElementById('clienteModal').classList.add('active');
+        }
+
+        function openEntregaModal() {
+            document.getElementById('ent_fecha').valueAsDate = new Date();
+            document.getElementById('entregaModal').classList.add('active');
+        }
+
+        function openUsuarioModal() {
+            document.getElementById('usuarioModal').classList.add('active');
+        }
+
+        function closeModal(id) {
+            document.getElementById(id).classList.remove('active');
+        }
+
+        function toast(msg) {
+            const div = document.createElement('div');
+            div.className = 'toast';
+            div.textContent = msg;
+            document.body.appendChild(div);
+            setTimeout(() => div.remove(), 3000);
+        }
+
+        function logout() {
+            localStorage.removeItem('user');
+            location.reload();
+        }
+
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
