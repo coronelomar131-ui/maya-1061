@@ -719,6 +719,11 @@ let ventas   = JSON.parse(localStorage.getItem('ma4_v')||'[]');
 let almacen  = JSON.parse(localStorage.getItem('ma4_a')||'[]');
 let clientes = JSON.parse(localStorage.getItem('ma4_c')||'[]');
 let usuarios = JSON.parse(localStorage.getItem('ma4_u')||'[]');
+let entregas = JSON.parse(localStorage.getItem('ma4_e')||'[]');
+
+// Alias para compatibilidad con Supabase
+let productos = almacen;
+
 let sesionActual = null;
 let eVId=null,eAId=null,eCId=null;
 let vSC='fecha',vSD=-1,vPg=1;
@@ -730,6 +735,7 @@ function sv(){
   localStorage.setItem('ma4_a',JSON.stringify(almacen));
   localStorage.setItem('ma4_c',JSON.stringify(clientes));
   localStorage.setItem('ma4_u',JSON.stringify(usuarios));
+  localStorage.setItem('ma4_e',JSON.stringify(entregas));
 }
 
 // ═════════════════════════════════════
@@ -1794,8 +1800,11 @@ async function loadProductosFromSupabase(){
   if(!sbClient) return;
   try {
     const { data } = await sbClient.from('productos').select('*');
-    if(data) productos = data;
-    console.log('✅ Productos cargados:', productos.length);
+    if(data) {
+      almacen = data;
+      productos = almacen; // Mantener alias
+      console.log('✅ Productos cargados:', almacen.length);
+    }
   } catch(e) {
     console.error('Error cargando productos:', e);
   }
@@ -1827,8 +1836,10 @@ async function loadEntregasFromSupabase(){
   if(!sbClient) return;
   try {
     const { data } = await sbClient.from('entregas').select('*');
-    if(data) entregas = data;
-    console.log('✅ Entregas cargadas:', entregas.length);
+    if(data) {
+      entregas = data;
+      console.log('✅ Entregas cargadas:', entregas.length);
+    }
   } catch(e) {
     console.error('Error cargando entregas:', e);
   }
