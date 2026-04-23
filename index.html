@@ -1517,7 +1517,10 @@ function toggleUsuario(userId){
 // ═════════════════════════════════════
 function importarExcelAlmacen(event){
   const file = event.target.files[0];
-  if(!file) return;
+  if(!file) {
+    toast('⚠ Selecciona un archivo');
+    return;
+  }
 
   const reader = new FileReader();
   reader.onload = function(e){
@@ -1525,58 +1528,109 @@ function importarExcelAlmacen(event){
       const text = e.target.result;
       const lines = text.split('\n').filter(l => l.trim());
 
+      console.log('📄 Archivo cargado, líneas:', lines.length);
+
       if(lines.length < 2){
-        toast('⚠ Archivo vacío');
+        toast('⚠ Archivo vacío o sin datos');
         return;
       }
 
-      // Parsear CSV/Excel
-      const headers = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/"/g,''));
+      // Parsear CSV (soporta comillas)
+      const parseCSV = (line) => {
+        const regex = /("([^"]*)"|[^,]+)/g;
+        const cells = [];
+        let match;
+        while ((match = regex.exec(line)) !== null) {
+          cells.push((match[2] || match[1]).trim());
+        }
+        return cells;
+      };
+
+      const headerRow = parseCSV(lines[0]);
+      const headers = headerRow.map(h => h.toLowerCase().trim());
+
+      console.log('📌 Columnas detectadas:', headers);
+
       let count = 0;
+      const errores = [];
 
       for(let i = 1; i < lines.length; i++){
-        const cells = lines[i].split(',').map(c => c.trim().replace(/"/g,''));
-        if(!cells[0]) continue;
+        try {
+          const cells = parseCSV(lines[i]);
+          if(!cells[0] || cells.every(c => !c)) continue;
 
-        // Mapear columnas automáticamente
-        const nombre = cells[headers.indexOf('nombre')] || cells[1] || '';
-        if(!nombre) continue;
+          // Buscar índices de columnas
+          const getNombre = () => {
+            const idx = headers.findIndex(h => h.includes('nombre') || h.includes('product'));
+            return cells[idx >= 0 ? idx : 0] || '';
+          };
 
-        const newId = Math.max(...productos.map(p => p.id), 0) + 1;
-        const producto = {
-          id: newId,
-          nombre: nombre,
-          sku: cells[headers.indexOf('sku')] || cells[2] || '',
-          categoria: cells[headers.indexOf('categoria')] || cells[3] || 'General',
-          stock: parseFloat(cells[headers.indexOf('stock')] || cells[4] || 0) || 0,
-          min: parseFloat(cells[headers.indexOf('min')] || cells[5] || 5) || 5,
-          max: parseFloat(cells[headers.indexOf('max')] || cells[6] || 100) || 100,
-          costo: parseFloat(cells[headers.indexOf('costo')] || cells[7] || 0) || 0,
-          precio: parseFloat(cells[headers.indexOf('precio')] || cells[8] || 0) || 0,
-          notas: cells[headers.indexOf('notas')] || cells[9] || ''
-        };
+          const nombre = getNombre();
+          if(!nombre) {
+            errores.push(`Fila ${i+1}: sin nombre`);
+            continue;
+          }
 
-        productos.push(producto);
-        count++;
+          const getSKU = () => {
+            const idx = headers.findIndex(h => h.includes('sku') || h.includes('cod'));
+            return cells[idx >= 0 ? idx : 1] || '';
+          };
+
+          const getCategoria = () => {
+            const idx = headers.findIndex(h => h.includes('categoria') || h.includes('category'));
+            return cells[idx >= 0 ? idx : 2] || 'General';
+          };
+
+          const newId = Math.max(...productos.map(p => p.id), 0) + 1;
+          const producto = {
+            id: newId,
+            nombre: nombre,
+            sku: getSKU(),
+            categoria: getCategoria(),
+            stock: parseFloat(cells[headers.findIndex(h => h.includes('stock'))] || 0) || 0,
+            min: parseFloat(cells[headers.findIndex(h => h.includes('min'))] || 5) || 5,
+            max: parseFloat(cells[headers.findIndex(h => h.includes('max'))] || 100) || 100,
+            costo: parseFloat(cells[headers.findIndex(h => h.includes('costo'))] || 0) || 0,
+            precio: parseFloat(cells[headers.findIndex(h => h.includes('precio'))] || 0) || 0,
+            notas: cells[headers.findIndex(h => h.includes('nota'))] || ''
+          };
+
+          productos.push(producto);
+          count++;
+          console.log(`✅ Producto ${count}: ${nombre}`);
+        } catch(rowErr) {
+          errores.push(`Fila ${i+1}: ${rowErr.message}`);
+        }
       }
 
       sv();
       if(sbClient) saveToSupabase('productos', productos);
       renderA();
-      toast(`✅ ${count} productos importados`);
+
+      if(count > 0) {
+        toast(`✅ ${count} productos importados`);
+      }
+      if(errores.length > 0) {
+        console.warn('⚠️ Errores:', errores);
+        toast(`⚠ ${count} importados, ${errores.length} errores`);
+      }
+
       document.getElementById('importAlmacenFile').value = '';
     } catch(err){
-      console.error('Error:', err);
-      toast('⚠ Error: ' + err.message);
+      console.error('❌ Error importando:', err);
+      toast('❌ Error: ' + err.message);
     }
   };
 
-  reader.readAsText(file);
+  reader.readAsText(file, 'UTF-8');
 }
 
 function importarExcelClientes(event){
   const file = event.target.files[0];
-  if(!file) return;
+  if(!file) {
+    toast('⚠ Selecciona un archivo');
+    return;
+  }
 
   const reader = new FileReader();
   reader.onload = function(e){
@@ -1584,54 +1638,92 @@ function importarExcelClientes(event){
       const text = e.target.result;
       const lines = text.split('\n').filter(l => l.trim());
 
+      console.log('📄 Archivo cargado, líneas:', lines.length);
+
       if(lines.length < 2){
-        toast('⚠ Archivo vacío');
+        toast('⚠ Archivo vacío o sin datos');
         return;
       }
 
-      // Parsear CSV/Excel
-      const headers = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/"/g,''));
+      // Parsear CSV (soporta comillas)
+      const parseCSV = (line) => {
+        const regex = /("([^"]*)"|[^,]+)/g;
+        const cells = [];
+        let match;
+        while ((match = regex.exec(line)) !== null) {
+          cells.push((match[2] || match[1]).trim());
+        }
+        return cells;
+      };
+
+      const headerRow = parseCSV(lines[0]);
+      const headers = headerRow.map(h => h.toLowerCase().trim());
+
+      console.log('📌 Columnas detectadas:', headers);
+
       let count = 0;
+      const errores = [];
 
       for(let i = 1; i < lines.length; i++){
-        const cells = lines[i].split(',').map(c => c.trim().replace(/"/g,''));
-        if(!cells[0]) continue;
+        try {
+          const cells = parseCSV(lines[i]);
+          if(!cells[0] || cells.every(c => !c)) continue;
 
-        // Mapear columnas automáticamente
-        const nombre = cells[headers.indexOf('nombre')] || cells[1] || '';
-        if(!nombre) continue;
+          // Buscar índices
+          const getNombre = () => {
+            const idx = headers.findIndex(h => h.includes('nombre') || h.includes('razón') || h.includes('empresa'));
+            return cells[idx >= 0 ? idx : 0] || '';
+          };
 
-        const newId = Math.max(...clientes.map(c => c.id), 0) + 1;
-        const cliente = {
-          id: newId,
-          nombre: nombre,
-          tipo: cells[headers.indexOf('tipo')] || cells[2] || 'Regular',
-          responsable: cells[headers.indexOf('responsable')] || cells[3] || '',
-          rfc: cells[headers.indexOf('rfc')] || cells[4] || '',
-          tel: cells[headers.indexOf('tel')] || cells[headers.indexOf('telefono')] || cells[5] || '',
-          email: cells[headers.indexOf('email')] || cells[6] || '',
-          credito: parseFloat(cells[headers.indexOf('credito')] || cells[7] || 0) || 0,
-          diasCred: parseInt(cells[headers.indexOf('diascred')] || cells[headers.indexOf('dias')] || cells[8] || 30) || 30,
-          direccion: cells[headers.indexOf('direccion')] || cells[9] || '',
-          notas: cells[headers.indexOf('notas')] || cells[10] || ''
-        };
+          const nombre = getNombre();
+          if(!nombre) {
+            errores.push(`Fila ${i+1}: sin nombre`);
+            continue;
+          }
 
-        clientes.push(cliente);
-        count++;
+          const newId = Math.max(...clientes.map(c => c.id), 0) + 1;
+          const cliente = {
+            id: newId,
+            nombre: nombre,
+            tipo: cells[headers.findIndex(h => h.includes('tipo'))] || 'Regular',
+            responsable: cells[headers.findIndex(h => h.includes('responsable') || h.includes('contacto'))] || '',
+            rfc: cells[headers.findIndex(h => h.includes('rfc'))] || '',
+            tel: cells[headers.findIndex(h => h.includes('tel') || h.includes('phone'))] || '',
+            email: cells[headers.findIndex(h => h.includes('email') || h.includes('correo'))] || '',
+            credito: parseFloat(cells[headers.findIndex(h => h.includes('credito'))] || 0) || 0,
+            diasCred: parseInt(cells[headers.findIndex(h => h.includes('diascred') || h.includes('dias') || h.includes('plazo'))] || 30) || 30,
+            direccion: cells[headers.findIndex(h => h.includes('direc'))] || '',
+            notas: cells[headers.findIndex(h => h.includes('nota'))] || ''
+          };
+
+          clientes.push(cliente);
+          count++;
+          console.log(`✅ Cliente ${count}: ${nombre}`);
+        } catch(rowErr) {
+          errores.push(`Fila ${i+1}: ${rowErr.message}`);
+        }
       }
 
       sv();
       if(sbClient) saveToSupabase('clientes', clientes);
       renderC();
-      toast(`✅ ${count} clientes importados`);
+
+      if(count > 0) {
+        toast(`✅ ${count} clientes importados`);
+      }
+      if(errores.length > 0) {
+        console.warn('⚠️ Errores:', errores);
+        toast(`⚠ ${count} importados, ${errores.length} errores`);
+      }
+
       document.getElementById('importClientesFile').value = '';
     } catch(err){
-      console.error('Error:', err);
-      toast('⚠ Error: ' + err.message);
+      console.error('❌ Error importando:', err);
+      toast('❌ Error: ' + err.message);
     }
   };
 
-  reader.readAsText(file);
+  reader.readAsText(file, 'UTF-8');
 }
 
 // ═════════════════════════════════════
