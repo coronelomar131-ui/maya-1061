@@ -462,6 +462,8 @@ td{padding:.58rem .85rem;vertical-align:middle;white-space:nowrap}
             <button class="vt-btn" id="vt-table" onclick="setView('table')">≡ Lista</button>
           </div>
           <button class="btn btn-primary btn-sm" onclick="openAlmModal()">+ Nuevo Producto</button>
+          <button class="btn btn-ghost btn-sm" onclick="document.getElementById('importNotasAlmacen').click()">📥 Notas</button>
+          <input type="file" id="importNotasAlmacen" accept=".xlsx,.xls,.csv,.txt" style="display:none" onchange="importNotasAlmacen(event)">
         </div>
       </div>
       <!-- CARD view -->
@@ -489,6 +491,8 @@ td{padding:.58rem .85rem;vertical-align:middle;white-space:nowrap}
           <select class="filt" id="cl-ti" onchange="renderC()"><option value="">Todos</option><option value="con">Con Factura</option><option value="sin">Sin Factura</option></select>
         </div>
         <button class="btn btn-primary btn-sm" onclick="openClienteModal()">+ Nuevo Cliente</button>
+        <button class="btn btn-ghost btn-sm" onclick="document.getElementById('importNotasClientes').click()">📥 Notas</button>
+        <input type="file" id="importNotasClientes" accept=".xlsx,.xls,.csv,.txt" style="display:none" onchange="importNotasClientes(event)">
       </div>
       <div class="cl-grid" id="cl-g"></div>
       <div class="empty" id="cl-empty" style="display:none">
@@ -1506,6 +1510,132 @@ function toggleUsuario(userId){
       doLogout();
     }, 500);
   }
+}
+
+// ═════════════════════════════════════
+// IMPORTAR NOTAS (Excel → JSON)
+// ═════════════════════════════════════
+function importNotasAlmacen(event){
+  const file = event.target.files[0];
+  if(!file) return;
+
+  const reader = new FileReader();
+  reader.onload = function(e){
+    try {
+      const text = e.target.result;
+      const rows = text.split('\n').filter(r=>r.trim());
+
+      if(rows.length < 2){
+        toast('⚠ Archivo vacío o sin formato válido');
+        return;
+      }
+
+      const headers = rows[0].split('\t');
+      const datos = [];
+
+      for(let i=1; i<rows.length; i++){
+        const cols = rows[i].split('\t');
+        const row = {};
+        headers.forEach((h, idx) => {
+          row[h.trim().toLowerCase()] = (cols[idx] || '').trim();
+        });
+        datos.push(row);
+      }
+
+      // Mapear a estructura de productos
+      let count = 0;
+      datos.forEach(d => {
+        if(!d.nombre) return;
+
+        const newProducto = {
+          id: Math.max(...productos.map(p=>p.id), 0) + 1,
+          nombre: d.nombre || '',
+          sku: d.sku || '',
+          categoria: d.categoria || 'General',
+          stock: parseFloat(d.stock) || 0,
+          min: parseFloat(d.min) || 5,
+          max: parseFloat(d.max) || 100,
+          costo: parseFloat(d.costo) || 0,
+          precio: parseFloat(d.precio) || 0,
+          notas: d.notas || ''
+        };
+
+        productos.push(newProducto);
+        count++;
+      });
+
+      sv(); renderA();
+      toast(`✅ ${count} productos importados`);
+      document.getElementById('importNotasAlmacen').value = '';
+    } catch(err){
+      console.error('Error:', err);
+      toast('⚠ Error al procesar archivo: ' + err.message);
+    }
+  };
+
+  reader.readAsText(file);
+}
+
+function importNotasClientes(event){
+  const file = event.target.files[0];
+  if(!file) return;
+
+  const reader = new FileReader();
+  reader.onload = function(e){
+    try {
+      const text = e.target.result;
+      const rows = text.split('\n').filter(r=>r.trim());
+
+      if(rows.length < 2){
+        toast('⚠ Archivo vacío o sin formato válido');
+        return;
+      }
+
+      const headers = rows[0].split('\t');
+      const datos = [];
+
+      for(let i=1; i<rows.length; i++){
+        const cols = rows[i].split('\t');
+        const row = {};
+        headers.forEach((h, idx) => {
+          row[h.trim().toLowerCase()] = (cols[idx] || '').trim();
+        });
+        datos.push(row);
+      }
+
+      // Mapear a estructura de clientes
+      let count = 0;
+      datos.forEach(d => {
+        if(!d.nombre) return;
+
+        const newCliente = {
+          id: Math.max(...clientes.map(c=>c.id), 0) + 1,
+          nombre: d.nombre || '',
+          tipo: d.tipo || 'Regular',
+          responsable: d.responsable || '',
+          rfc: d.rfc || '',
+          tel: d.tel || '',
+          email: d.email || '',
+          credito: parseFloat(d.credito) || 0,
+          diasCred: parseInt(d.diascred) || 30,
+          direccion: d.direccion || '',
+          notas: d.notas || ''
+        };
+
+        clientes.push(newCliente);
+        count++;
+      });
+
+      sv(); renderC();
+      toast(`✅ ${count} clientes importados`);
+      document.getElementById('importNotasClientes').value = '';
+    } catch(err){
+      console.error('Error:', err);
+      toast('⚠ Error al procesar archivo: ' + err.message);
+    }
+  };
+
+  reader.readAsText(file);
 }
 
 // ═════════════════════════════════════
