@@ -1639,6 +1639,130 @@ function importNotasClientes(event){
 }
 
 // ═════════════════════════════════════
+// SUPABASE REAL-TIME SYNC
+// ═════════════════════════════════════
+function setupRealtimeSyncAll(){
+  if(!sbClient) return;
+
+  // Sync Productos
+  sbClient
+    .channel('productos-sync')
+    .on('postgres_changes',
+      { event: '*', schema: 'public', table: 'productos' },
+      async (payload) => {
+        console.log('📦 Productos actualizados:', payload.eventType);
+        await loadProductosFromSupabase();
+        if(document.getElementById('page-almacen').classList.contains('on')) renderA();
+      }
+    )
+    .subscribe();
+
+  // Sync Clientes
+  sbClient
+    .channel('clientes-sync')
+    .on('postgres_changes',
+      { event: '*', schema: 'public', table: 'clientes' },
+      async (payload) => {
+        console.log('👥 Clientes actualizados:', payload.eventType);
+        await loadClientesFromSupabase();
+        if(document.getElementById('page-clientes').classList.contains('on')) renderC();
+      }
+    )
+    .subscribe();
+
+  // Sync Ventas
+  sbClient
+    .channel('ventas-sync')
+    .on('postgres_changes',
+      { event: '*', schema: 'public', table: 'ventas' },
+      async (payload) => {
+        console.log('💰 Ventas actualizadas:', payload.eventType);
+        await loadVentasFromSupabase();
+        if(document.getElementById('page-ventas').classList.contains('on')) {
+          renderVentas();
+          badges();
+          rDash();
+        }
+      }
+    )
+    .subscribe();
+
+  // Sync Entregas
+  sbClient
+    .channel('entregas-sync')
+    .on('postgres_changes',
+      { event: '*', schema: 'public', table: 'entregas' },
+      async (payload) => {
+        console.log('📮 Entregas actualizadas:', payload.eventType);
+        await loadEntregasFromSupabase();
+        if(document.getElementById('page-entregas').classList.contains('on')) renderEntregas();
+      }
+    )
+    .subscribe();
+}
+
+// Load from Supabase
+async function loadProductosFromSupabase(){
+  if(!sbClient) return;
+  try {
+    const { data } = await sbClient.from('productos').select('*');
+    if(data) productos = data;
+    console.log('✅ Productos cargados:', productos.length);
+  } catch(e) {
+    console.error('Error cargando productos:', e);
+  }
+}
+
+async function loadClientesFromSupabase(){
+  if(!sbClient) return;
+  try {
+    const { data } = await sbClient.from('clientes').select('*');
+    if(data) clientes = data;
+    console.log('✅ Clientes cargados:', clientes.length);
+  } catch(e) {
+    console.error('Error cargando clientes:', e);
+  }
+}
+
+async function loadVentasFromSupabase(){
+  if(!sbClient) return;
+  try {
+    const { data } = await sbClient.from('ventas').select('*');
+    if(data) ventas = data;
+    console.log('✅ Ventas cargadas:', ventas.length);
+  } catch(e) {
+    console.error('Error cargando ventas:', e);
+  }
+}
+
+async function loadEntregasFromSupabase(){
+  if(!sbClient) return;
+  try {
+    const { data } = await sbClient.from('entregas').select('*');
+    if(data) entregas = data;
+    console.log('✅ Entregas cargadas:', entregas.length);
+  } catch(e) {
+    console.error('Error cargando entregas:', e);
+  }
+}
+
+// Save to Supabase
+async function saveToSupabase(table, data){
+  if(!sbClient) {
+    sv(); // Fall back to localStorage
+    return;
+  }
+  try {
+    const { error } = await sbClient.from(table).upsert(data, { onConflict: 'id' });
+    if(error) throw error;
+    console.log(`✅ Guardado en ${table}`);
+  } catch(e) {
+    console.error(`Error guardando en ${table}:`, e);
+    sv(); // Fall back to localStorage
+  }
+}
+
+// ═════════════════════════════════════
 // SUPABASE SYNC FOR USERS
 // ═════════════════════════════════════
 let sbClient = null;
@@ -1660,11 +1784,20 @@ async function initSupabaseSimple(){
     sbReady = true;
     console.log('✅ Supabase inicializado');
 
-    // Cargar usuarios desde Supabase
-    await loadUsersFromSupabase();
+    // Cargar TODOS los datos desde Supabase
+    await Promise.all([
+      loadUsersFromSupabase(),
+      loadProductosFromSupabase(),
+      loadClientesFromSupabase(),
+      loadVentasFromSupabase(),
+      loadEntregasFromSupabase()
+    ]);
 
-    // Configurar listener real-time
+    // Configurar listeners real-time para sync automático
     setupUsersListener();
+    setupRealtimeSyncAll();
+
+    console.log('✅ Real-time sync activado');
   } catch(e){
     console.error('Supabase init error:', e);
   }
@@ -1673,10 +1806,10 @@ async function initSupabaseSimple(){
 async function loadUsersFromSupabase(){
   if(!sbClient) return;
   try {
-    const { data } = await sbClient.from('usuarios').select('data').limit(1);
-    if(data && data.length > 0 && data[0].data){
-      usuarios = data[0].data;
-      console.log('✅ Usuarios cargados desde Supabase');
+    const { data } = await sbClient.from('usuarios').select('*');
+    if(data) {
+      usuarios = data;
+      console.log('✅ Usuarios cargados:', usuarios.length);
     }
   } catch(e){
     console.error('Error cargando usuarios:', e);
