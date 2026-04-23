@@ -462,7 +462,8 @@ td{padding:.58rem .85rem;vertical-align:middle;white-space:nowrap}
             <button class="vt-btn" id="vt-table" onclick="setView('table')">≡ Lista</button>
           </div>
           <button class="btn btn-primary btn-sm" onclick="openAlmModal()">+ Nuevo Producto</button>
-          <button class="btn btn-ghost btn-sm" onclick="exportProductosExcel()">⬇ Excel</button>
+          <button class="btn btn-ghost btn-sm" onclick="document.getElementById('importAlmacenFile').click()">📥 Importar Excel</button>
+          <input type="file" id="importAlmacenFile" accept=".xlsx,.xls,.csv" style="display:none" onchange="importarExcelAlmacen(event)">
         </div>
       </div>
       <!-- CARD view -->
@@ -490,7 +491,8 @@ td{padding:.58rem .85rem;vertical-align:middle;white-space:nowrap}
           <select class="filt" id="cl-ti" onchange="renderC()"><option value="">Todos</option><option value="con">Con Factura</option><option value="sin">Sin Factura</option></select>
         </div>
         <button class="btn btn-primary btn-sm" onclick="openClienteModal()">+ Nuevo Cliente</button>
-        <button class="btn btn-ghost btn-sm" onclick="exportClientesExcel()">⬇ Excel</button>
+        <button class="btn btn-ghost btn-sm" onclick="document.getElementById('importClientesFile').click()">📥 Importar Excel</button>
+        <input type="file" id="importClientesFile" accept=".xlsx,.xls,.csv" style="display:none" onchange="importarExcelClientes(event)">
       </div>
       <div class="cl-grid" id="cl-g"></div>
       <div class="empty" id="cl-empty" style="display:none">
@@ -1511,79 +1513,125 @@ function toggleUsuario(userId){
 }
 
 // ═════════════════════════════════════
-// EXPORTAR A EXCEL (JSON → CSV → Excel)
+// IMPORTAR EXCEL → JSON
 // ═════════════════════════════════════
-function exportProductosExcel(){
-  if(productos.length === 0){
-    toast('⚠ No hay productos para exportar');
-    return;
-  }
+function importarExcelAlmacen(event){
+  const file = event.target.files[0];
+  if(!file) return;
 
-  // Headers
-  const headers = ['ID', 'Nombre', 'SKU', 'Categoría', 'Stock', 'Mín', 'Máx', 'Costo', 'Precio', 'Notas'];
+  const reader = new FileReader();
+  reader.onload = function(e){
+    try {
+      const text = e.target.result;
+      const lines = text.split('\n').filter(l => l.trim());
 
-  // Datos
-  const rows = productos.map(p => [
-    p.id,
-    p.nombre,
-    p.sku || '',
-    p.categoria || '',
-    p.stock || 0,
-    p.min || 5,
-    p.max || 100,
-    p.costo || 0,
-    p.precio || 0,
-    p.notas || ''
-  ]);
+      if(lines.length < 2){
+        toast('⚠ Archivo vacío');
+        return;
+      }
 
-  // CSV
-  const csv = [headers, ...rows].map(r => r.map(v => `"${v}"`).join(',')).join('\n');
+      // Parsear CSV/Excel
+      const headers = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/"/g,''));
+      let count = 0;
 
-  // Download
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-  const link = document.createElement('a');
-  link.href = URL.createObjectURL(blob);
-  link.download = `inventario_${new Date().toISOString().split('T')[0]}.csv`;
-  link.click();
+      for(let i = 1; i < lines.length; i++){
+        const cells = lines[i].split(',').map(c => c.trim().replace(/"/g,''));
+        if(!cells[0]) continue;
 
-  toast(`✅ Exportado: ${productos.length} productos`);
+        // Mapear columnas automáticamente
+        const nombre = cells[headers.indexOf('nombre')] || cells[1] || '';
+        if(!nombre) continue;
+
+        const newId = Math.max(...productos.map(p => p.id), 0) + 1;
+        const producto = {
+          id: newId,
+          nombre: nombre,
+          sku: cells[headers.indexOf('sku')] || cells[2] || '',
+          categoria: cells[headers.indexOf('categoria')] || cells[3] || 'General',
+          stock: parseFloat(cells[headers.indexOf('stock')] || cells[4] || 0) || 0,
+          min: parseFloat(cells[headers.indexOf('min')] || cells[5] || 5) || 5,
+          max: parseFloat(cells[headers.indexOf('max')] || cells[6] || 100) || 100,
+          costo: parseFloat(cells[headers.indexOf('costo')] || cells[7] || 0) || 0,
+          precio: parseFloat(cells[headers.indexOf('precio')] || cells[8] || 0) || 0,
+          notas: cells[headers.indexOf('notas')] || cells[9] || ''
+        };
+
+        productos.push(producto);
+        count++;
+      }
+
+      sv();
+      if(sbClient) saveToSupabase('productos', productos);
+      renderA();
+      toast(`✅ ${count} productos importados`);
+      document.getElementById('importAlmacenFile').value = '';
+    } catch(err){
+      console.error('Error:', err);
+      toast('⚠ Error: ' + err.message);
+    }
+  };
+
+  reader.readAsText(file);
 }
 
-function exportClientesExcel(){
-  if(clientes.length === 0){
-    toast('⚠ No hay clientes para exportar');
-    return;
-  }
+function importarExcelClientes(event){
+  const file = event.target.files[0];
+  if(!file) return;
 
-  // Headers
-  const headers = ['ID', 'Nombre', 'Tipo', 'Responsable', 'RFC', 'Teléfono', 'Email', 'Crédito', 'Días Crédito', 'Dirección', 'Notas'];
+  const reader = new FileReader();
+  reader.onload = function(e){
+    try {
+      const text = e.target.result;
+      const lines = text.split('\n').filter(l => l.trim());
 
-  // Datos
-  const rows = clientes.map(c => [
-    c.id,
-    c.nombre,
-    c.tipo || '',
-    c.responsable || '',
-    c.rfc || '',
-    c.tel || '',
-    c.email || '',
-    c.credito || 0,
-    c.diasCred || 30,
-    c.direccion || '',
-    c.notas || ''
-  ]);
+      if(lines.length < 2){
+        toast('⚠ Archivo vacío');
+        return;
+      }
 
-  // CSV
-  const csv = [headers, ...rows].map(r => r.map(v => `"${v}"`).join(',')).join('\n');
+      // Parsear CSV/Excel
+      const headers = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/"/g,''));
+      let count = 0;
 
-  // Download
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-  const link = document.createElement('a');
-  link.href = URL.createObjectURL(blob);
-  link.download = `clientes_${new Date().toISOString().split('T')[0]}.csv`;
-  link.click();
+      for(let i = 1; i < lines.length; i++){
+        const cells = lines[i].split(',').map(c => c.trim().replace(/"/g,''));
+        if(!cells[0]) continue;
 
-  toast(`✅ Exportado: ${clientes.length} clientes`);
+        // Mapear columnas automáticamente
+        const nombre = cells[headers.indexOf('nombre')] || cells[1] || '';
+        if(!nombre) continue;
+
+        const newId = Math.max(...clientes.map(c => c.id), 0) + 1;
+        const cliente = {
+          id: newId,
+          nombre: nombre,
+          tipo: cells[headers.indexOf('tipo')] || cells[2] || 'Regular',
+          responsable: cells[headers.indexOf('responsable')] || cells[3] || '',
+          rfc: cells[headers.indexOf('rfc')] || cells[4] || '',
+          tel: cells[headers.indexOf('tel')] || cells[headers.indexOf('telefono')] || cells[5] || '',
+          email: cells[headers.indexOf('email')] || cells[6] || '',
+          credito: parseFloat(cells[headers.indexOf('credito')] || cells[7] || 0) || 0,
+          diasCred: parseInt(cells[headers.indexOf('diascred')] || cells[headers.indexOf('dias')] || cells[8] || 30) || 30,
+          direccion: cells[headers.indexOf('direccion')] || cells[9] || '',
+          notas: cells[headers.indexOf('notas')] || cells[10] || ''
+        };
+
+        clientes.push(cliente);
+        count++;
+      }
+
+      sv();
+      if(sbClient) saveToSupabase('clientes', clientes);
+      renderC();
+      toast(`✅ ${count} clientes importados`);
+      document.getElementById('importClientesFile').value = '';
+    } catch(err){
+      console.error('Error:', err);
+      toast('⚠ Error: ' + err.message);
+    }
+  };
+
+  reader.readAsText(file);
 }
 
 // ═════════════════════════════════════
