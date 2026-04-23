@@ -462,8 +462,7 @@ td{padding:.58rem .85rem;vertical-align:middle;white-space:nowrap}
             <button class="vt-btn" id="vt-table" onclick="setView('table')">≡ Lista</button>
           </div>
           <button class="btn btn-primary btn-sm" onclick="openAlmModal()">+ Nuevo Producto</button>
-          <button class="btn btn-ghost btn-sm" onclick="document.getElementById('importNotasAlmacen').click()">📥 Notas</button>
-          <input type="file" id="importNotasAlmacen" accept=".xlsx,.xls,.csv,.txt" style="display:none" onchange="importNotasAlmacen(event)">
+          <button class="btn btn-ghost btn-sm" onclick="exportProductosExcel()">⬇ Excel</button>
         </div>
       </div>
       <!-- CARD view -->
@@ -491,8 +490,7 @@ td{padding:.58rem .85rem;vertical-align:middle;white-space:nowrap}
           <select class="filt" id="cl-ti" onchange="renderC()"><option value="">Todos</option><option value="con">Con Factura</option><option value="sin">Sin Factura</option></select>
         </div>
         <button class="btn btn-primary btn-sm" onclick="openClienteModal()">+ Nuevo Cliente</button>
-        <button class="btn btn-ghost btn-sm" onclick="document.getElementById('importNotasClientes').click()">📥 Notas</button>
-        <input type="file" id="importNotasClientes" accept=".xlsx,.xls,.csv,.txt" style="display:none" onchange="importNotasClientes(event)">
+        <button class="btn btn-ghost btn-sm" onclick="exportClientesExcel()">⬇ Excel</button>
       </div>
       <div class="cl-grid" id="cl-g"></div>
       <div class="empty" id="cl-empty" style="display:none">
@@ -1513,129 +1511,79 @@ function toggleUsuario(userId){
 }
 
 // ═════════════════════════════════════
-// IMPORTAR NOTAS (Excel → JSON)
+// EXPORTAR A EXCEL (JSON → CSV → Excel)
 // ═════════════════════════════════════
-function importNotasAlmacen(event){
-  const file = event.target.files[0];
-  if(!file) return;
+function exportProductosExcel(){
+  if(productos.length === 0){
+    toast('⚠ No hay productos para exportar');
+    return;
+  }
 
-  const reader = new FileReader();
-  reader.onload = function(e){
-    try {
-      const text = e.target.result;
-      const rows = text.split('\n').filter(r=>r.trim());
+  // Headers
+  const headers = ['ID', 'Nombre', 'SKU', 'Categoría', 'Stock', 'Mín', 'Máx', 'Costo', 'Precio', 'Notas'];
 
-      if(rows.length < 2){
-        toast('⚠ Archivo vacío o sin formato válido');
-        return;
-      }
+  // Datos
+  const rows = productos.map(p => [
+    p.id,
+    p.nombre,
+    p.sku || '',
+    p.categoria || '',
+    p.stock || 0,
+    p.min || 5,
+    p.max || 100,
+    p.costo || 0,
+    p.precio || 0,
+    p.notas || ''
+  ]);
 
-      const headers = rows[0].split('\t');
-      const datos = [];
+  // CSV
+  const csv = [headers, ...rows].map(r => r.map(v => `"${v}"`).join(',')).join('\n');
 
-      for(let i=1; i<rows.length; i++){
-        const cols = rows[i].split('\t');
-        const row = {};
-        headers.forEach((h, idx) => {
-          row[h.trim().toLowerCase()] = (cols[idx] || '').trim();
-        });
-        datos.push(row);
-      }
+  // Download
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = `inventario_${new Date().toISOString().split('T')[0]}.csv`;
+  link.click();
 
-      // Mapear a estructura de productos
-      let count = 0;
-      datos.forEach(d => {
-        if(!d.nombre) return;
-
-        const newProducto = {
-          id: Math.max(...productos.map(p=>p.id), 0) + 1,
-          nombre: d.nombre || '',
-          sku: d.sku || '',
-          categoria: d.categoria || 'General',
-          stock: parseFloat(d.stock) || 0,
-          min: parseFloat(d.min) || 5,
-          max: parseFloat(d.max) || 100,
-          costo: parseFloat(d.costo) || 0,
-          precio: parseFloat(d.precio) || 0,
-          notas: d.notas || ''
-        };
-
-        productos.push(newProducto);
-        count++;
-      });
-
-      sv(); renderA();
-      toast(`✅ ${count} productos importados`);
-      document.getElementById('importNotasAlmacen').value = '';
-    } catch(err){
-      console.error('Error:', err);
-      toast('⚠ Error al procesar archivo: ' + err.message);
-    }
-  };
-
-  reader.readAsText(file);
+  toast(`✅ Exportado: ${productos.length} productos`);
 }
 
-function importNotasClientes(event){
-  const file = event.target.files[0];
-  if(!file) return;
+function exportClientesExcel(){
+  if(clientes.length === 0){
+    toast('⚠ No hay clientes para exportar');
+    return;
+  }
 
-  const reader = new FileReader();
-  reader.onload = function(e){
-    try {
-      const text = e.target.result;
-      const rows = text.split('\n').filter(r=>r.trim());
+  // Headers
+  const headers = ['ID', 'Nombre', 'Tipo', 'Responsable', 'RFC', 'Teléfono', 'Email', 'Crédito', 'Días Crédito', 'Dirección', 'Notas'];
 
-      if(rows.length < 2){
-        toast('⚠ Archivo vacío o sin formato válido');
-        return;
-      }
+  // Datos
+  const rows = clientes.map(c => [
+    c.id,
+    c.nombre,
+    c.tipo || '',
+    c.responsable || '',
+    c.rfc || '',
+    c.tel || '',
+    c.email || '',
+    c.credito || 0,
+    c.diasCred || 30,
+    c.direccion || '',
+    c.notas || ''
+  ]);
 
-      const headers = rows[0].split('\t');
-      const datos = [];
+  // CSV
+  const csv = [headers, ...rows].map(r => r.map(v => `"${v}"`).join(',')).join('\n');
 
-      for(let i=1; i<rows.length; i++){
-        const cols = rows[i].split('\t');
-        const row = {};
-        headers.forEach((h, idx) => {
-          row[h.trim().toLowerCase()] = (cols[idx] || '').trim();
-        });
-        datos.push(row);
-      }
+  // Download
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = `clientes_${new Date().toISOString().split('T')[0]}.csv`;
+  link.click();
 
-      // Mapear a estructura de clientes
-      let count = 0;
-      datos.forEach(d => {
-        if(!d.nombre) return;
-
-        const newCliente = {
-          id: Math.max(...clientes.map(c=>c.id), 0) + 1,
-          nombre: d.nombre || '',
-          tipo: d.tipo || 'Regular',
-          responsable: d.responsable || '',
-          rfc: d.rfc || '',
-          tel: d.tel || '',
-          email: d.email || '',
-          credito: parseFloat(d.credito) || 0,
-          diasCred: parseInt(d.diascred) || 30,
-          direccion: d.direccion || '',
-          notas: d.notas || ''
-        };
-
-        clientes.push(newCliente);
-        count++;
-      });
-
-      sv(); renderC();
-      toast(`✅ ${count} clientes importados`);
-      document.getElementById('importNotasClientes').value = '';
-    } catch(err){
-      console.error('Error:', err);
-      toast('⚠ Error al procesar archivo: ' + err.message);
-    }
-  };
-
-  reader.readAsText(file);
+  toast(`✅ Exportado: ${clientes.length} clientes`);
 }
 
 // ═════════════════════════════════════
